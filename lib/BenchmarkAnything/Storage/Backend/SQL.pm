@@ -847,6 +847,7 @@ BenchmarkAnything::Storage::Backend::SQL-Configuration. Possible aggregation typ
     - min = minimum
     - max = maximum
     - avg = average
+    - gem = geometric mean
     - sum = summary
     - cnt = count
     - cnd = distinct value count

@@ -1,4 +1,5 @@
 package BenchmarkAnything::Storage::Backend::SQL;
+# ABSTRACT: Autonomous SQL backend to store benchmarks
 
 use strict;
 use warnings;

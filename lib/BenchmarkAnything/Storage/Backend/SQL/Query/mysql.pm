@@ -1,4 +1,5 @@
 package BenchmarkAnything::Storage::Backend::SQL::Query::mysql;
+# ABSTRACT: BenchmarkAnything::Storage::Backend::SQL - qerying - MySQL backend
 
 use strict;
 use warnings;
@@ -830,11 +831,3 @@ sub delete_benchmark_value {
 }
 
 1;
-
-__END__
-
-=pod
-
-=head1 NAME
-
-BenchmarkAnything::Storage::Backend::SQL::Query::mysql - Base class for the database work used by BenchmarkAnything::Storage::Backend::SQL when MySQL is used

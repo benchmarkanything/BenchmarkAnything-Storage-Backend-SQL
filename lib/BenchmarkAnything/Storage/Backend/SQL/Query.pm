@@ -1,5 +1,5 @@
 package BenchmarkAnything::Storage::Backend::SQL::Query;
-# ABSTRACT: BenchmarkAnything::Storage::Backend::SQL - qerying - base class
+# ABSTRACT: BenchmarkAnything::Storage::Backend::SQL - querying - base class
 
 use strict;
 use warnings;

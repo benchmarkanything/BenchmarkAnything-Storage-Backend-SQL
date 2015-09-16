@@ -1,5 +1,5 @@
 package BenchmarkAnything::Storage::Backend::SQL::Query::mysql;
-# ABSTRACT: BenchmarkAnything::Storage::Backend::SQL - qerying - MySQL backend
+# ABSTRACT: BenchmarkAnything::Storage::Backend::SQL - querying - MySQL backend
 
 use strict;
 use warnings;

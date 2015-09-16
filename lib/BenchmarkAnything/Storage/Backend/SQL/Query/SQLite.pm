@@ -1,5 +1,5 @@
 package BenchmarkAnything::Storage::Backend::SQL::Query::SQLite;
-# ABSTRACT: BenchmarkAnything::Storage::Backend::SQL - qerying - SQLite backend
+# ABSTRACT: BenchmarkAnything::Storage::Backend::SQL - querying - SQLite backend
 
 use strict;
 use warnings;

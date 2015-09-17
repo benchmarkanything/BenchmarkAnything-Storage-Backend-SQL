@@ -16,6 +16,8 @@ my %h_default_columns = (
     'CREATED'   => 'bv.created_at',
 );
 
+sub _NOW { "CURRENT_TIMESTAMP" }
+
 sub select_benchmark_values {
 
     my ( $or_self, $hr_search ) = @_;
@@ -364,7 +366,7 @@ sub insert_addtyperelation {
         INSERT OR IGNORE INTO $or_self->{config}{tables}{additional_type_relation_table}
             ( bench_id, bench_additional_type_id, created_at )
         VALUES
-            ( ?, ?, CURRENT_TIMESTAMP )
+            ( ?, ?, @{[$or_self->_NOW]} )
     ", @a_vals );
 
 }
@@ -377,7 +379,7 @@ sub insert_unit {
         INSERT INTO $or_self->{config}{tables}{unit_table}
             ( bench_unit, created_at )
         VALUES
-            ( ?, CURRENT_TIMESTAMP )
+            ( ?, @{[$or_self->_NOW]} )
     ", @a_vals );
 
 }
@@ -390,7 +392,7 @@ sub insert_benchmark {
         INSERT INTO $or_self->{config}{tables}{benchmark_table}
             ( bench, bench_unit_id, active, created_at )
         VALUES
-            ( ?, ?, 1, CURRENT_TIMESTAMP )
+            ( ?, ?, 1, @{[$or_self->_NOW]} )
     ", @a_vals );
 
 }
@@ -403,7 +405,7 @@ sub insert_benchmark_value {
         INSERT OR IGNORE INTO $or_self->{config}{tables}{benchmark_value_table}
             ( bench_id, bench_subsume_type_id, bench_value, active, created_at )
         VALUES
-            ( ?, ?, ?, 1, CURRENT_TIMESTAMP )
+            ( ?, ?, ?, 1, @{[$or_self->_NOW]} )
     ", @a_vals );
 
 }
@@ -424,7 +426,7 @@ sub copy_additional_values {
         INSERT INTO $or_self->{config}{tables}{additional_relation_table}
             ( bench_value_id, bench_additional_value_id, active, created_at )
         SELECT
-            ?, bench_additional_value_id, 1, CURRENT_TIMESTAMP
+            ?, bench_additional_value_id, 1, @{[$or_self->_NOW]}
         FROM
             $or_self->{config}{tables}{additional_relation_table}
         WHERE
@@ -441,7 +443,7 @@ sub insert_addtype {
         INSERT INTO $or_self->{config}{tables}{additional_type_table}
             ( bench_additional_type, created_at )
         VALUES
-            ( ?, CURRENT_TIMESTAMP )
+            ( ?, @{[$or_self->_NOW]} )
     ", @a_vals );
 
 }
@@ -454,7 +456,7 @@ sub insert_addvalue {
         INSERT INTO $or_self->{config}{tables}{additional_value_table}
             ( bench_additional_type_id, bench_additional_value, created_at )
         VALUES
-            ( ?, ?, CURRENT_TIMESTAMP )
+            ( ?, ?, @{[$or_self->_NOW]} )
     ", @a_vals );
 
 }
@@ -467,7 +469,7 @@ sub insert_addvaluerelation {
         INSERT OR IGNORE INTO $or_self->{config}{tables}{additional_relation_table}
             ( bench_value_id, bench_additional_value_id, active, created_at )
         VALUES
-            ( ?, ?, 1, CURRENT_TIMESTAMP )
+            ( ?, ?, 1, @{[$or_self->_NOW]} )
     ", @a_vals );
 
 }

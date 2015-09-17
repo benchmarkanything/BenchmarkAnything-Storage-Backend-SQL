@@ -16,6 +16,8 @@ my %h_default_columns = (
     'CREATED'   => 'bv.created_at',
 );
 
+sub _NOW { "CURRENT_TIMESTAMP" }
+
 sub default_columns {
     return %h_default_columns;
 }

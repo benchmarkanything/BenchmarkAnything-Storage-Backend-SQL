@@ -16,6 +16,8 @@ my %h_default_columns = (
     'CREATED'   => 'bv.created_at',
 );
 
+sub _NOW { "NOW()" }
+
 sub select_benchmark_values {
 
     my ( $or_self, $hr_search ) = @_;
@@ -364,7 +366,7 @@ sub insert_addtyperelation {
         INSERT IGNORE INTO $or_self->{config}{tables}{additional_type_relation_table}
             ( bench_id, bench_additional_type_id, created_at )
         VALUES
-            ( ?, ?, NOW() )
+            ( ?, ?, @{[$or_self->_NOW]} )
     ", @a_vals );
 
 }
@@ -377,7 +379,7 @@ sub insert_unit {
         INSERT INTO $or_self->{config}{tables}{unit_table}
             ( bench_unit, created_at )
         VALUES
-            ( ?, NOW() )
+            ( ?, @{[$or_self->_NOW]} )
         ON DUPLICATE KEY
             UPDATE bench_unit_id=LAST_INSERT_ID(bench_unit_id)
     ", @a_vals );
@@ -392,7 +394,7 @@ sub insert_benchmark {
         INSERT INTO $or_self->{config}{tables}{benchmark_table}
             ( bench, bench_unit_id, active, created_at )
         VALUES
-            ( ?, ?, 1, NOW() )
+            ( ?, ?, 1, @{[$or_self->_NOW]} )
         ON DUPLICATE KEY
             UPDATE bench_id=LAST_INSERT_ID(bench_id)
     ", @a_vals );
@@ -407,7 +409,7 @@ sub insert_benchmark_value {
         INSERT IGNORE INTO $or_self->{config}{tables}{benchmark_value_table}
             ( bench_id, bench_subsume_type_id, bench_value, active, created_at )
         VALUES
-            ( ?, ?, ?, 1, NOW() )
+            ( ?, ?, ?, 1, @{[$or_self->_NOW]} )
     ", @a_vals );
 
 }
@@ -428,7 +430,7 @@ sub copy_additional_values {
         INSERT INTO $or_self->{config}{tables}{additional_relation_table}
             ( bench_value_id, bench_additional_value_id, active, created_at )
         SELECT
-            ?, bench_additional_value_id, 1, NOW()
+            ?, bench_additional_value_id, 1, @{[$or_self->_NOW]}
         FROM
             $or_self->{config}{tables}{additional_relation_table}
         WHERE
@@ -445,7 +447,7 @@ sub insert_addtype {
         INSERT IGNORE INTO $or_self->{config}{tables}{additional_type_table}
             ( bench_additional_type, created_at )
         VALUES
-            ( ?, NOW() )
+            ( ?, @{[$or_self->_NOW]} )
         ON DUPLICATE KEY
             UPDATE bench_additional_type_id=LAST_INSERT_ID(bench_additional_type_id)
     ", @a_vals );
@@ -460,7 +462,7 @@ sub insert_addvalue {
         INSERT INTO $or_self->{config}{tables}{additional_value_table}
             ( bench_additional_type_id, bench_additional_value, created_at )
         VALUES
-            ( ?, ?, NOW() )
+            ( ?, ?, @{[$or_self->_NOW]} )
         ON DUPLICATE KEY
             UPDATE bench_additional_value_id=LAST_INSERT_ID(bench_additional_value_id)
     ", @a_vals );
@@ -475,7 +477,7 @@ sub insert_addvaluerelation {
         INSERT IGNORE INTO $or_self->{config}{tables}{additional_relation_table}
             ( bench_value_id, bench_additional_value_id, active, created_at )
         VALUES
-            ( ?, ?, 1, NOW() )
+            ( ?, ?, 1, @{[$or_self->_NOW]} )
     ", @a_vals );
 
 }

@@ -1,6 +1,9 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - forked into different namespace to better fit the common theme
+          was: Tapper-Benchmark
+          now: BenchmarkAnything-Storage-Backend-SQL
 
 0.012     2015-09-17
         - refactor common methods between db backends

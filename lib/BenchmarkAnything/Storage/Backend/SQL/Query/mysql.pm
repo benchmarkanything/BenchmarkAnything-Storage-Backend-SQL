@@ -268,7 +268,6 @@ sub create_select_column {
 
     my ( $or_self, $ar_select, $i_counter, $b_aggregate_all ) = @_;
 
-    warn ("***** mysql - create_select_column");
     my $s_aggr_func           = q##;
     my ( $s_aggr, $s_column ) = @{$ar_select};
     my $s_return_select       = q##;

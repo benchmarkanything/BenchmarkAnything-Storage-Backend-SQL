@@ -410,31 +410,6 @@ sub insert_benchmark_value {
 
 }
 
-sub copy_additional_values {
-
-    my ( $or_self, $hr_vals ) = @_;
-
-    for my $s_param (qw/ new_bench_value_id old_bench_value_id /) {
-        if (! $hr_vals->{$s_param} ) {
-            require Carp;
-            Carp::confess("missing parameter '$s_param'");
-            return;
-        }
-    }
-
-    return $or_self->execute_query( "
-        INSERT INTO $or_self->{config}{tables}{additional_relation_table}
-            ( bench_value_id, bench_additional_value_id, active, created_at )
-        SELECT
-            ?, bench_additional_value_id, 1, @{[$or_self->_NOW]}
-        FROM
-            $or_self->{config}{tables}{additional_relation_table}
-        WHERE
-            bench_value_id = ?
-    ", @{$hr_vals}{qw/ new_bench_value_id old_bench_value_id /} );
-
-}
-
 sub insert_addtype {
 
     my ( $or_self, @a_vals ) = @_;

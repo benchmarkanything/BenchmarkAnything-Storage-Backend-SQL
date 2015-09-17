@@ -18,6 +18,8 @@ my %h_default_columns = (
 
 sub _NOW { "NOW()" }
 
+sub _FOR_UPDATE { "FOR UPDATE" }
+
 sub select_benchmark_values {
 
     my ( $or_self, $hr_search ) = @_;
@@ -340,7 +342,7 @@ sub select_raw_bench_bundle_for_lock {
               processing=0
         ORDER BY raw_bench_bundle_id ASC
         LIMIT 1
-        FOR UPDATE
+        @{[$or_self->_FOR_UPDATE]}
     ", @a_vals );
 }
 
@@ -353,7 +355,7 @@ sub select_raw_bench_bundle_for_processing {
         FROM raw_bench_bundles
         WHERE raw_bench_bundle_id = ?
         LIMIT 1
-        FOR UPDATE
+        @{[$or_self->_FOR_UPDATE]}
     ", @a_vals );
 }
 

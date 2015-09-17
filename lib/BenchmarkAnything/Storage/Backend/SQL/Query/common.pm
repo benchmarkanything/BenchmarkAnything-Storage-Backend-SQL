@@ -18,6 +18,8 @@ my %h_default_columns = (
 
 sub _NOW { "CURRENT_TIMESTAMP" }
 
+sub _FOR_UPDATE { "FOR UPDATE" }
+
 sub default_columns {
     return %h_default_columns;
 }

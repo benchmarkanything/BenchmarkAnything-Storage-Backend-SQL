@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - more refactoring of common methods between db backends
 
 0.014     2015-09-17
         - namespace confusion carnage - redo cpan upload

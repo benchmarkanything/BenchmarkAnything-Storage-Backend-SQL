@@ -230,7 +230,7 @@ sub select_benchmark_values {
     my $s_raw_where = $hr_search->{where_sql};
     if ( $s_raw_where ) {
         $s_raw_where =~ s/
-            \${(.+?)}
+            \$\{(.+?)\}
         /
             $h_used_selects{$or_self}{$1}
                 ? $h_used_selects{$or_self}{$1}
@@ -325,7 +325,7 @@ sub create_select_column {
         $h_used_selects{$or_self}{$s_replace_as} = "bav$i_counter.bench_additional_value";
     }
 
-    $s_return_select =~ s/\${COLUMN}/$h_used_selects{$or_self}{$s_replace_as}/g;
+    $s_return_select =~ s/\$\{COLUMN\}/$h_used_selects{$or_self}{$s_replace_as}/g;
 
     return ( $s_return_column, "$s_return_select AS '$s_replace_as'", );
 

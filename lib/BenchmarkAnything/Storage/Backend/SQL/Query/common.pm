@@ -557,4 +557,32 @@ sub copy_additional_values {
 
 }
 
+sub select_raw_bench_bundle_for_lock {
+
+    my ( $or_self, @a_vals ) = @_;
+
+    return $or_self->execute_query( "
+        SELECT raw_bench_bundle_id
+        FROM raw_bench_bundles
+        WHERE processed=0 AND
+              processing=0
+        ORDER BY raw_bench_bundle_id ASC
+        LIMIT 1
+        @{[$or_self->_FOR_UPDATE]}
+    ", @a_vals );
+}
+
+sub select_raw_bench_bundle_for_processing {
+
+    my ( $or_self, @a_vals ) = @_;
+
+    return $or_self->execute_query( "
+        SELECT raw_bench_bundle_serialized
+        FROM raw_bench_bundles
+        WHERE raw_bench_bundle_id = ?
+        LIMIT 1
+        @{[$or_self->_FOR_UPDATE]}
+    ", @a_vals );
+}
+
 1;

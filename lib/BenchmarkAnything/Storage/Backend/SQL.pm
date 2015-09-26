@@ -368,7 +368,6 @@ sub process_queued_multi_benchmark {
 
     # ===== exclusively pick single raw entry =====
     # Lock single row via processing=1 so that only one worker handles it!
-    $or_self->{query}{dbh}->do("set transaction isolation level read committed") if $driver eq "mysql"; # avoid deadlocks due to gap locking
     $or_self->{query}->start_transaction;
     eval {
             $ar_results = $or_self->{query}->select_raw_bench_bundle_for_lock;
@@ -382,7 +381,6 @@ sub process_queued_multi_benchmark {
             $or_self->{query}->start_processing_raw_bench_bundle($i_id);
     };
     $or_self->{query}->finish_transaction( $@ );
-    $or_self->{query}{dbh}->do("set transaction isolation level repeatable read") if $driver eq "mysql"; # reset to normal gap locking
 
     # ===== process that single raw entry =====
     $or_self->{query}->start_transaction;

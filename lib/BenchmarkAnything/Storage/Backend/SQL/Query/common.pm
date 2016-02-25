@@ -347,6 +347,31 @@ sub select_benchmark_names {
 
 }
 
+sub select_additional_keys {
+
+    my ( $or_self, @a_vals ) = @_;
+
+    my $query = "
+        SELECT DISTINCT bench_additional_type
+        FROM $or_self->{config}{tables}{additional_type_table}";
+    $query .= "
+        WHERE bench_additional_type LIKE ? " if @a_vals;
+    return $or_self->execute_query( $query, @a_vals );
+
+}
+
+sub select_additional_key_id {
+
+    my ( $or_self, @a_vals ) = @_;
+
+    return $or_self->execute_query( "
+        SELECT DISTINCT bench_additional_type_id
+        FROM $or_self->{config}{tables}{additional_type_table}
+        WHERE bench_additional_type = ?
+    ", @a_vals );
+
+}
+
 sub select_unit {
 
     my ( $or_self, @a_vals ) = @_;

@@ -497,6 +497,34 @@ sub list_benchmark_names {
 
 }
 
+sub list_additional_keys {
+
+    my ( $or_self, $s_pattern ) = @_;
+
+    my $ar_pattern = defined($s_pattern) ? [$s_pattern] : [];
+
+    my $s_key;
+    if ( $or_self->{cache} ) {
+        require JSON::XS;
+        $s_key = JSON::XS::encode_json($ar_pattern);
+        if ( my $ar_search_data = $or_self->{cache}->get("list_additional_keys||$s_key") ) {
+            return $ar_search_data;
+        }
+    }
+
+    my $ar_result = $or_self->{query}
+        ->select_additional_keys( @$ar_pattern )
+        ->fetchall_arrayref([0]);
+    my $ar_key_names = [ map { $_->[0] } @$ar_result ];
+
+    if ( $or_self->{cache} ) {
+        $or_self->{cache}->set( "list_additional_keys||$s_key" => $ar_key_names );
+    }
+
+    return $ar_key_names;
+
+}
+
 sub get_single_benchmark_point {
 
     my ( $or_self, $i_bench_value_id ) = @_;
@@ -721,6 +749,30 @@ sub subsume {
     }
 
     return 1;
+
+}
+
+sub _get_additional_key_id {
+
+    my ( $or_self, $s_key ) = @_;
+
+    return $or_self->{query}->select_additional_key_id($s_key)->fetch->[0];
+
+}
+
+sub default_columns {
+
+    my ( $or_self ) = @_;
+
+    return $or_self->{query}->default_columns;
+
+}
+
+sub benchmark_operators {
+
+    my ( $or_self ) = @_;
+
+    return $or_self->{query}->benchmark_operators;
 
 }
 
@@ -1183,6 +1235,13 @@ Get a list of all benchmark NAMEs, optionally matching a given pattern
 (SQL LIKE syntax, i.e., using C<%> as placeholder.
 
  $benchmarkanythingdata = $or_bench->list_benchmark_names($pattern);
+
+=head3 list_additional_keys
+
+Get a list of all additional key names, optionally matching a given
+pattern (SQL LIKE syntax, i.e., using C<%> as placeholder.
+
+ $benchmarkanythingdata = $or_bench->list_additional_keys($pattern);
 
 =head3 enqueue_multi_benchmark
 

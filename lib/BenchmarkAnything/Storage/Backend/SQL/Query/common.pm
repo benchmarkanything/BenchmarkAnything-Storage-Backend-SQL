@@ -378,7 +378,7 @@ sub select_addvalue {
     return $or_self->execute_query( "
         SELECT bench_additional_value_id
         FROM $or_self->{config}{tables}{additional_value_table}
-        WHERE bench_additional_type_id = ? AND bench_additional_value = ?
+        WHERE bench_additional_type_id = ? AND bench_additional_value ".(defined($a_vals[1]) ? '= ?' : 'IS NULL')."
     ", @a_vals );
 
 }

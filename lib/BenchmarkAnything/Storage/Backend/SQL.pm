@@ -1372,3 +1372,16 @@ Containing the names of the tables used bei B<BenchmarkAnything::Storage::Backen
 In case of a true value the module cache some select results
 
 =back
+
+=head3 default_columns
+
+Returns the hash about those columns that are by default part of each
+single data point (NAME, UNIT, VALU, VALUE_ID, CREATED, each with its
+internal column name). These default columns might go away in the
+future, but for now some systems need this internal information.
+
+=head3 benchmark_operators
+
+Returns the list of operators supported by the query language. This is
+provided for frontend systems that support creating queries
+automatically.

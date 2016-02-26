@@ -1,6 +1,9 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - fix AUTOINCREMENT on raw_bench_bundles
+        - fix DB-specific special NULL handling of undefined values
+        - support for 'listkeys'
 
 0.015     2015-09-23
         - more refactoring of common methods between db backends

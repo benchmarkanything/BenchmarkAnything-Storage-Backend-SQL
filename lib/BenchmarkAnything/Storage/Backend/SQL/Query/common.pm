@@ -372,6 +372,24 @@ sub select_additional_key_id {
 
 }
 
+sub select_count_datapoints {
+    my ( $or_self, @a_vals ) = @_;
+
+    return $or_self->execute_query( "SELECT COUNT(1) FROM $or_self->{config}{tables}{benchmark_value_table}" );
+}
+
+sub select_count_metrics {
+    my ( $or_self, @a_vals ) = @_;
+
+    return $or_self->execute_query( "SELECT COUNT(1) FROM $or_self->{config}{tables}{benchmark_table}" );
+}
+
+sub select_count_keys {
+    my ( $or_self, @a_vals ) = @_;
+
+    return $or_self->execute_query( "SELECT COUNT(1) FROM $or_self->{config}{tables}{additional_type_table}" );
+}
+
 sub select_unit {
 
     my ( $or_self, @a_vals ) = @_;

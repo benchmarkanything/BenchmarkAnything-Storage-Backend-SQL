@@ -525,6 +525,21 @@ sub list_additional_keys {
 
 }
 
+sub get_stats {
+
+    my ( $or_self ) = @_;
+
+    my $i_count_datapoints = $or_self->{query}->select_count_datapoints->fetch->[0];
+    my $i_count_metrics    = $or_self->{query}->select_count_metrics->fetch->[0];
+    my $i_count_keys       = $or_self->{query}->select_count_keys->fetch->[0];
+
+    return {
+        count_datapoints => 0+$i_count_datapoints,
+        count_metrics    => 0+$i_count_metrics,
+        count_keys       => 0+$i_count_keys,
+    };
+}
+
 sub get_single_benchmark_point {
 
     my ( $or_self, $i_bench_value_id ) = @_;
@@ -1219,6 +1234,14 @@ Every "key" create a new nested hash.
             ['testrun_id','ASC']
         ],
     });
+
+
+=head3 get_stats
+
+Returns a hash with info about the storage, like how many data points,
+how many metrics, how many additional keys, are stored.
+
+ my $stats = $or_bench->get_stats();
 
 
 =head3 get_single_benchmark_point

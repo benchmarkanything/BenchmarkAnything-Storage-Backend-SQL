@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - support for 'stats' - provide counters of points and metrics
 
 0.016     2016-02-26
         - fix AUTOINCREMENT on raw_bench_bundles

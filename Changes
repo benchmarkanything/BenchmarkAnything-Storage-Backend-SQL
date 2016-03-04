@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.017     2016-03-04
         - support for 'stats' - provide counters of points and metrics
 
 0.016     2016-02-26

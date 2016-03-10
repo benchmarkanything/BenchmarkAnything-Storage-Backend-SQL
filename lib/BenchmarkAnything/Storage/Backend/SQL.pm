@@ -529,14 +529,16 @@ sub get_stats {
 
     my ( $or_self ) = @_;
 
-    my $i_count_datapoints = $or_self->{query}->select_count_datapoints->fetch->[0];
-    my $i_count_metrics    = $or_self->{query}->select_count_metrics->fetch->[0];
-    my $i_count_keys       = $or_self->{query}->select_count_keys->fetch->[0];
+    my $i_count_datapointkeys = $or_self->{query}->select_count_datapointkeys->fetch->[0];
+    my $i_count_datapoints    = $or_self->{query}->select_count_datapoints->fetch->[0];
+    my $i_count_metrics       = $or_self->{query}->select_count_metrics->fetch->[0];
+    my $i_count_keys          = $or_self->{query}->select_count_keys->fetch->[0];
 
     return {
-        count_datapoints => 0+$i_count_datapoints,
-        count_metrics    => 0+$i_count_metrics,
-        count_keys       => 0+$i_count_keys,
+        count_datapointkeys => 0+$i_count_datapointkeys,
+        count_datapoints    => 0+$i_count_datapoints,
+        count_metrics       => 0+$i_count_metrics,
+        count_keys          => 0+$i_count_keys,
     };
 }
 

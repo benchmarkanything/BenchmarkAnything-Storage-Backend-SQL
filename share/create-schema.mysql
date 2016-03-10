@@ -22,7 +22,7 @@ CREATE TABLE `bench_subsume_types` (
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'creation date',
   PRIMARY KEY (`bench_subsume_type_id`),
   UNIQUE INDEX `ux_bench_subsume_types_01` (`bench_subsume_type` ASC)
-) COMMENT 'types of subsume values';
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC COMMENT 'types of subsume values';
 
 CREATE TABLE `bench_units` (
   `bench_unit_id` TINYINT(3) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'unique key (PK)',
@@ -30,7 +30,7 @@ CREATE TABLE `bench_units` (
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'creation date',
   PRIMARY KEY (`bench_unit_id`),
   UNIQUE INDEX `ux_bench_units_01` (`bench_unit` ASC)
-) COMMENT 'units for benchmark data points';
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC COMMENT 'units for benchmark data points';
 
 CREATE TABLE `benchs` (
   `bench_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'unique key (PK)',
@@ -46,7 +46,7 @@ CREATE TABLE `benchs` (
     REFERENCES `bench_units` (`bench_unit_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION
-) COMMENT 'containing benchmark head data';
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC COMMENT 'containing benchmark head data';
 
 CREATE TABLE `bench_values` (
   `bench_value_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'unique key (PK)',
@@ -68,7 +68,7 @@ CREATE TABLE `bench_values` (
     REFERENCES `bench_subsume_types` (`bench_subsume_type_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION
-) COMMENT 'containing data points for benchmark';
+) ENGINE=InnoDB COMMENT 'containing data points for benchmark';
 
 CREATE TABLE `bench_additional_types` (
   `bench_additional_type_id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'unique key (PK)',
@@ -76,7 +76,7 @@ CREATE TABLE `bench_additional_types` (
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'creation date',
   PRIMARY KEY (`bench_additional_type_id`),
   UNIQUE INDEX `ux_bench_additional_types_01` (`bench_additional_type` ASC)
-) COMMENT 'types of additional values for benchmark data points';
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC COMMENT 'types of additional values for benchmark data points';
 
 CREATE TABLE `bench_additional_values` (
   `bench_additional_value_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'unique key (PK)',
@@ -91,7 +91,7 @@ CREATE TABLE `bench_additional_values` (
     REFERENCES `bench_additional_types` (`bench_additional_type_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION
-) COMMENT 'additional values for benchmark data point';
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC COMMENT 'additional values for benchmark data point';
 
 CREATE TABLE `bench_additional_type_relations` (
   `bench_id` INT(10) UNSIGNED NOT NULL COMMENT 'FK to benchs (PK)',
@@ -110,7 +110,7 @@ CREATE TABLE `bench_additional_type_relations` (
     REFERENCES `bench_additional_types` (`bench_additional_type_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION
-) COMMENT 'additional values for benchmark data point';
+) ENGINE=InnoDB COMMENT 'additional values for benchmark data point';
 
 CREATE TABLE `bench_additional_relations` (
   `bench_value_id` INT(10) UNSIGNED NOT NULL COMMENT 'FK to bench_values',
@@ -130,7 +130,7 @@ CREATE TABLE `bench_additional_relations` (
     REFERENCES `bench_additional_values` (`bench_additional_value_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION
-) COMMENT 'add additional values to benchmarks';
+) ENGINE=InnoDB COMMENT 'add additional values to benchmarks';
 
 CREATE TABLE `bench_backup_values` (
   `bench_backup_value_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'unique key (PK)',
@@ -159,7 +159,7 @@ CREATE TABLE `bench_backup_values` (
     REFERENCES `bench_values` (`bench_value_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION
-) COMMENT='backup table for data points for benchmark';
+) ENGINE=InnoDB COMMENT='backup table for data points for benchmark';
 
 CREATE TABLE `bench_backup_additional_relations` (
   `bench_backup_value_id` int(10) unsigned NOT NULL COMMENT 'FK to bench_backup_values',
@@ -179,7 +179,7 @@ CREATE TABLE `bench_backup_additional_relations` (
     REFERENCES `bench_additional_values` (`bench_additional_value_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION
-) COMMENT='add additional values to benchmarks';
+) ENGINE=InnoDB COMMENT='add additional values to benchmarks';
 
 CREATE TABLE `raw_bench_bundles` (
  `raw_bench_bundle_id` INT(10) UNSIGNED PRIMARY KEY AUTO_INCREMENT NOT NULL,

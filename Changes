@@ -3,6 +3,7 @@ Revision history for {{$dist->name}}
 {{$NEXT}}
         - mysql: create tables can now work with UTF-8
         - 'stats' also provides 'count of additional key/value pairs'
+        - add CREATED_AT/VALUE_ID to essentials when returning single point
 
 0.017     2016-03-04
         - support for 'stats' - provide counters of points and metrics

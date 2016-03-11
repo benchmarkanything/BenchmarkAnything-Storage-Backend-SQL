@@ -573,6 +573,8 @@ sub get_single_benchmark_point {
     $hr_result          = { map { ($_->{bench_additional_type} => $_->{bench_additional_value} ) } @$ar_query_result };
     $hr_result->{NAME}  = $hr_essentials->{bench};
     $hr_result->{VALUE} = $hr_essentials->{bench_value};
+    $hr_result->{VALUE_ID} = $hr_essentials->{bench_value_id};
+    $hr_result->{CREATED_AT} = $hr_essentials->{created_at};
     $hr_result->{UNIT}  = $hr_essentials->{bench_unit} if $hr_essentials->{bench_unit};
 
     # cache!

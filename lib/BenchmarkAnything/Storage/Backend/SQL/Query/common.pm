@@ -116,7 +116,9 @@ sub select_benchmark_point_essentials {
     return $or_self->execute_query( "
         SELECT
           b.bench,
+          bv.created_at,
           bv.bench_value,
+          bv.bench_value_id,
           bu.bench_unit
         FROM
           $or_self->{config}{tables}{benchmark_table} b

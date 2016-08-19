@@ -45,7 +45,7 @@ sub create_where_clause {
         || $ar_value->[0] eq '<='
         || $ar_value->[0] eq '>='
     ) {
-        $s_where_clause = "$s_column_name $ar_value->[0] (0 + ?)";
+        $s_where_clause = "$s_column_name $ar_value->[0] ?";
     }
     elsif ( $ar_value->[0] eq '=' ) {
         if ( $#{$ar_value} > 1 ) {

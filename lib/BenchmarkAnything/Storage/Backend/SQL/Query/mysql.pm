@@ -284,19 +284,19 @@ sub create_select_column {
                 $s_return_select = '${COLUMN}';
             }
             elsif ( $s_aggr eq 'min' ) {
-                $s_return_select = 'MIN( ${COLUMN} )';
+                $s_return_select = 'MIN( 0 + ${COLUMN} )';
             }
             elsif ( $s_aggr eq 'max' ) {
-                $s_return_select = 'MAX( ${COLUMN} )';
+                $s_return_select = 'MAX( 0 + ${COLUMN} )';
             }
             elsif ( $s_aggr eq 'avg' ) {
-                $s_return_select = 'AVG( ${COLUMN} )';
+                $s_return_select = 'AVG( 0 + ${COLUMN} )';
             }
             elsif ( $s_aggr eq 'gem' ) {
                 $s_return_select = 'EXP( SUM( LOG( ${COLUMN} ) ) / COUNT( ${COLUMN} ) )';
             }
             elsif ( $s_aggr eq 'sum' ) {
-                $s_return_select = 'SUM( ${COLUMN} )';
+                $s_return_select = 'SUM( 0 + ${COLUMN} )';
             }
             elsif ( $s_aggr eq 'cnt' ) {
                 $s_return_select = 'COUNT( ${COLUMN} )';

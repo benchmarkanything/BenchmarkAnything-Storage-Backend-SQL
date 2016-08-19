@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - mysql backend: force numeric convert on comparison operators and numerical aggregates
 
 0.018     2016-07-29
         - mysql: create tables can now work with UTF-8

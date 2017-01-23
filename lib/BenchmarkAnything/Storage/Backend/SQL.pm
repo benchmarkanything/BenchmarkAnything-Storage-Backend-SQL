@@ -149,8 +149,27 @@ sub new {
         });
     }
 
+    $or_self->{searchengine} = $hr_atts->{searchengine} if $hr_atts->{searchengine};
+
     return $or_self;
 
+}
+
+sub get_elasticsearch_client {
+
+    my ( $or_self ) = @_;
+
+    require Search::Elasticsearch;
+
+    my $s_index = $or_self->{searchengine}{elasticsearch}{index};
+    my $s_type  = $or_self->{searchengine}{elasticsearch}{type};
+    die "benchmarkanything-storage-backend-sql: missing config 'searchengine.elasticsearch.index'" unless $s_index;
+    die "benchmarkanything-storage-backend-sql: missing config 'searchengine.elasticsearch.type'"  unless $s_type;
+
+    # Elasticsearch
+    my $or_es = Search::Elasticsearch->new(client => ($or_self->{searchengine}{elasticsearch}{client} || "5_0::Direct"));
+
+    return wantarray ? ($or_es, $s_index, $s_type) : $or_es;
 }
 
 sub add_single_benchmark {
@@ -158,6 +177,8 @@ sub add_single_benchmark {
     my ( $or_self, $hr_benchmark, $hr_options ) = @_;
 
     my $hr_config = $or_self->{config};
+
+    my $VALUE_ID; # same spelling as reserved key in BenchmarkAnything schema
 
     # benchmark
     my $i_benchmark_id;
@@ -237,6 +258,7 @@ sub add_single_benchmark {
                 $hr_config->{tables}{benchmark_value_table},
                 'bench_value_id',
             );
+            $VALUE_ID = $i_benchmark_value_id;
 
             ADDITIONAL: for my $s_key ( keys %{$hr_point} ) {
 
@@ -336,6 +358,25 @@ sub add_single_benchmark {
         require Carp;
         Carp::cluck('no benchmark data found');
         return 0;
+    }
+
+    if (
+        $or_self->{searchengine} and
+        $or_self->{searchengine}{elasticsearch}{index_single_added_values_immediately}
+       )
+    {
+        my ($or_es, $s_index, $s_type) = $or_self->get_elasticsearch_client;
+
+        # Sic, we re-read from DB to get the very same data we
+        # *really got* stored, not just what we wish it should
+        # have stored. That gives us translations like
+        # num->string, CREATED_AT date, etc., etc.
+
+        my $hr_bmk = $or_self->get_single_benchmark_point($VALUE_ID);
+        my $ret = $or_es->index(index => $s_index,
+                                type  => $s_type,
+                                id    => $VALUE_ID,
+                                body  => $hr_bmk);
     }
 
     return 1;
@@ -795,6 +836,31 @@ sub benchmark_operators {
 
 }
 
+sub sync_search_engine
+{
+    my ( $or_self, $b_force, $i_start) = @_;
+
+    if ($or_self->{searchengine}{elasticsearch})
+    {
+        $i_start ||= 1;
+        my ($or_es, $s_index, $s_type) = $or_self->get_elasticsearch_client;
+        my $i_count_datapoints = $or_self->{query}->select_count_datapoints->fetch->[0];
+
+        for (my $i = $i_start; $i < $i_count_datapoints; $i++)
+        {
+            if ($b_force or not $or_es->exists(index => $s_index, type => $s_type, id => $i))
+            {
+                my $ret = $or_es->index(index => $s_index,
+                                        type  => $s_type,
+                                        id    => $i,
+                                        body  => $or_self->get_single_benchmark_point($i));
+            }
+        }
+    } else {
+            # Unsupported search engine
+    }
+}
+
 1;
 
 __END__
@@ -895,16 +961,13 @@ way to the the database. A search function with complexe filters already exists.
 
 =head3 new
 
-=over 4
-
-=item
-
 Create a new B<BenchmarkAnything::Storage::Backend::SQL> object.
 
     my $or_bench = BenchmarkAnything::Storage::Backend::SQL->new({
         dbh    => $or_dbh,
         debug  => 0,
         config => YAML::Syck::LoadFile('~/conf/tapper_benchmark.conf'),
+        searchengine => ... # optional, see below at "Elasticsearch support"
     });
 
 =over 4
@@ -925,14 +988,8 @@ written to STDOUT. The default is 0.
 
 =back
 
-=back
-
 
 =head3 add_single_benchmark
-
-=over 4
-
-=item
 
 Add one or more data points to a single benchmark to the database.
 
@@ -976,8 +1033,6 @@ Containing a unit for benchmark data point values.
 =item 2nd Parameter Hash => force [optional]
 
 Ignore forgivable errors while writing.
-
-=back
 
 =back
 
@@ -1412,3 +1467,55 @@ future, but for now some systems need this internal information.
 Returns the list of operators supported by the query language. This is
 provided for frontend systems that support creating queries
 automatically.
+
+=head2 Elasticsearch support
+
+=head3 Config
+
+You can pass through a config entry for an external search engine
+(currently only Elasticsearch) to the constructor:
+
+    my $or_bench = BenchmarkAnything::Storage::Backend::SQL->new({
+        dbh    => $or_dbh,
+        searchengine => {
+          elasticsearch =>
+            #
+            # which index/type to use
+            index => "myapp",
+            type  => "benchmarkanything",
+            #
+            # queries use the searchengine
+            enable_query => 1,
+            #
+            # should each single added value be stored immediately
+            # (maybe there is another bulk sync mechanism)
+            index_single_added_values_immediately => 1,
+            #
+            # which nodes to use
+            nodes => [ 'localhost:9200' ],
+        },
+    });
+
+With such a config and an already set up Elasticsearch you can use the
+lib as usual but it is handling all things transparently behind the
+scenes to index and query the data with Elasticsearch. The relational
+SQL storage is still used as the primary storage.
+
+=head3 Index
+
+When C<index_single_added_values_immediately> is set, every single
+added entry is fetched right after insert (to get all transformations
+and added metadata) and sent to elasticsearch for index.
+
+Please note, this immediate indexing adds an overhead to insert
+time. You could as well switch-off this setting and take care of
+indexing the data at another time. Then again, for instance the
+C<::Frontend::HTTP> already takes care of bulk-adding new data
+asynchronously, so the overhead should be hidden in there, so just
+switch-on the feature and don't worry too much.
+
+=head3 Search
+
+When C<enable_query> is set, the BenchmarkAnything queries are
+transformed into corresponding Elasticsearch queries, sent to
+Elastisearch, and the result is taken directly from its answers.

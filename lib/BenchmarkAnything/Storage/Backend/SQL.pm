@@ -838,22 +838,28 @@ sub benchmark_operators {
 
 sub sync_search_engine
 {
-    my ( $or_self, $b_force, $i_start) = @_;
+    my ( $or_self, $b_force, $i_start, $i_count) = @_;
+
+    $i_start ||= 1;
+    $i_count ||= 10_000;
 
     if ($or_self->{searchengine}{elasticsearch})
     {
-        $i_start ||= 1;
         my ($or_es, $s_index, $s_type) = $or_self->get_elasticsearch_client;
+        my $bulk = $or_es->bulk_helper(index => $s_index, type => $s_type);
         my $i_count_datapoints = $or_self->{query}->select_count_datapoints->fetch->[0];
 
-        for (my $i = $i_start; $i < $i_count_datapoints; $i++)
+        for (my $i = $i_start; $i < $i_count_datapoints; $i += $i_count)
         {
             if ($b_force or not $or_es->exists(index => $s_index, type => $s_type, id => $i))
             {
-                my $ret = $or_es->index(index => $s_index,
-                                        type  => $s_type,
-                                        id    => $i,
-                                        body  => $or_self->get_single_benchmark_point($i));
+                # Make sure to query the ::Backend::SQL store!
+                my $bmks = $or_self->search_array({where => [ [">=", VALUE_ID => $i],
+                                                              ["<",  VALUE_ID => $i+$i_count]
+                                                            ],
+                                                  limit => 0});
+                $bulk->index({ id => $_->{VALUE_ID}, source => $_}) foreach @$bmks;
+                $bulk->flush;
             }
         }
     } else {

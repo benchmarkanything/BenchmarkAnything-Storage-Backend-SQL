@@ -1311,8 +1311,9 @@ how many metrics, how many additional keys, are stored.
 
 =head3 get_single_benchmark_point
 
-Get a single data points from the database including all essential
-fields (NAME, VALUE, UNIT) and additional fields.
+Get a single data point from the database including all essential
+fields (NAME, VALUE, UNIT, VALUE_ID, CREATED_AT) and all additional
+fields.
 
  my $point = $or_bench->get_single_benchmark_point($value_id);
 

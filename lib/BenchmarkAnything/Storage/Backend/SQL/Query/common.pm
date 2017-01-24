@@ -175,6 +175,79 @@ sub select_complete_benchmark_point {
     return $or_self->execute_query( $query, @a_vals );
 }
 
+sub select_multiple_benchmark_points_additionals {
+
+    my ( $or_self, $i_start, $i_count ) = @_;
+
+    my $i_to = $i_start + $i_count;
+
+    my $query = "
+        SELECT
+          bv.bench_value_id,
+          bat.bench_additional_type,
+          bav.bench_additional_value
+        FROM
+          benchs b
+        JOIN
+          bench_values bv
+          ON
+            b.bench_id = bv.bench_id
+        JOIN
+          bench_additional_type_relations batr
+          ON
+            bv.bench_id = batr.bench_id
+        JOIN
+          bench_additional_types bat
+          ON
+            batr.bench_additional_type_id = bat.bench_additional_type_id
+        JOIN
+          bench_additional_relations bar
+          ON
+            bv.bench_value_id = bar.bench_value_id
+        JOIN
+          bench_additional_values bav
+          ON
+            bar.bench_additional_value_id = bav.bench_additional_value_id AND
+            bat.bench_additional_type_id  = bav.bench_additional_type_id
+        WHERE
+          bv.bench_value_id >= ? AND
+          bv.bench_value_id <  ?
+        ORDER BY
+          bat.bench_additional_type";
+    return $or_self->execute_query( $query, $i_start, $i_to );
+}
+
+sub select_multiple_benchmark_points_essentials {
+
+    my ( $or_self, $i_start, $i_count ) = @_;
+
+    my $i_to = $i_start + $i_count;
+
+    return $or_self->execute_query( "
+        SELECT
+          b.bench,
+          bv.created_at,
+          bv.bench_value,
+          bv.bench_value_id,
+          bu.bench_unit
+        FROM
+          $or_self->{config}{tables}{benchmark_table} b
+        JOIN
+          $or_self->{config}{tables}{benchmark_value_table} bv
+          ON
+            b.bench_id = bv.bench_id
+        LEFT JOIN
+          $or_self->{config}{tables}{unit_table} bu
+          ON
+            b.bench_unit_id = bu.bench_unit_id
+        WHERE
+          bv.bench_value_id >= ? AND
+          bv.bench_value_id <  ?
+        ;
+    ", $i_start, $i_to );
+
+}
+
 sub select_addtype_by_name {
 
     my ( $or_self, @a_vals ) = @_;

@@ -22,6 +22,14 @@ my $hr_default_config = {
     },
 };
 
+my $hr_column_ba_mapping = {
+    bench_value_id => 'VALUE_ID',
+    bench          => 'NAME',
+    bench_value    => 'VALUE',
+    bench_unit     => 'UNIT',
+    created_at     => 'CREATED_AT',
+};
+
 my $fn_add_subsumed_point = sub {
 
     my ( $or_self, $hr_atts ) = @_;
@@ -626,6 +634,56 @@ sub get_single_benchmark_point {
     return $hr_result;
 }
 
+sub get_full_benchmark_points {
+
+    my ( $or_self, $i_bench_value_id, $i_count ) = @_;
+
+    return [] unless $i_bench_value_id;
+
+    $i_count ||= 1;
+
+    # cache?
+    my $s_key;
+    if ( $or_self->{cache} ) {
+        require JSON::XS;
+        $s_key = JSON::XS::encode_json({bench_value_id => $i_bench_value_id});
+        if ( my $hr_search_data = $or_self->{cache}->get("get_full_benchmark_points||$s_key") ) {
+            return $hr_search_data;
+        }
+    }
+
+    # fetch essentials, like NAME, VALUE, UNIT
+    my $ar_essentials = $or_self->{query}
+        ->select_multiple_benchmark_points_essentials($i_bench_value_id, $i_count)
+        ->fetchall_arrayref({});
+    # additional key/value pairs
+    my $ar_additional_values = $or_self->{query}
+        ->select_multiple_benchmark_points_additionals($i_bench_value_id, $i_count)
+        ->fetchall_arrayref({});
+
+    # map columns into BenchmarkAnything schema
+    my $hr_bmk;
+    foreach my $k (keys %$hr_column_ba_mapping)
+    {
+        my $K = $hr_column_ba_mapping->{$k};
+        foreach my $e (@$ar_essentials) {
+            $hr_bmk->{$e->{bench_value_id}}{$K} = $e->{$k} if $k ne 'bench_unit' or defined $e->{$k};
+        }
+    }
+    foreach (@$ar_additional_values) {
+        $hr_bmk->{$_->{bench_value_id}}{$_->{bench_additional_type}} = $_->{bench_additional_value};
+    }
+    # sorted (by VALUE_ID) array of BenchmarkAnything entries
+    my @a_bmk = map { $hr_bmk->{$_} } sort keys %$hr_bmk;
+
+    # cache!
+    if ( $or_self->{cache} ) {
+        $or_self->{cache}->set( "get_full_benchmark_points||$s_key" => \@a_bmk );
+    }
+
+    return \@a_bmk;
+}
+
 sub search_array {
 
     my ( $or_self, $hr_search ) = @_;
@@ -854,10 +912,7 @@ sub sync_search_engine
             if ($b_force or not $or_es->exists(index => $s_index, type => $s_type, id => $i))
             {
                 # Make sure to query the ::Backend::SQL store!
-                my $bmks = $or_self->search_array({where => [ [">=", VALUE_ID => $i],
-                                                              ["<",  VALUE_ID => $i+$i_count]
-                                                            ],
-                                                  limit => 0});
+                my $bmks = $or_self->get_full_benchmark_points($i, $i_count);
                 $bulk->index({ id => $_->{VALUE_ID}, source => $_}) foreach @$bmks;
                 $bulk->flush;
             }
@@ -1318,6 +1373,15 @@ fields.
  my $point = $or_bench->get_single_benchmark_point($value_id);
 
 
+=head3 get_full_benchmark_points
+
+Get C<$count> data points from the database including all essential
+fields (NAME, VALUE, UNIT, VALUE_ID, CREATED_AT) and all additional
+fields, beginning with C<$value_id>.
+
+ my $point = $or_bench->get_full_benchmark_points($value_id, $count);
+
+
 =head3 list_benchmark_names
 
 Get a list of all benchmark NAMEs, optionally matching a given pattern
@@ -1427,6 +1491,13 @@ isn't desired a false value must be passed.
 
 =back
 
+
+=head3 sync_search_engine( $force, $start, $count)
+
+Sync C<$count> (default 10000) entries from the relational backend
+into the search engine (Elasticsearch) for indexing, beginning at
+C<$start> (default 1). Already existing entries in Elasticsearch are
+skipped unless C<$force> is set to a true value.
 
 =head1 Configuration
 

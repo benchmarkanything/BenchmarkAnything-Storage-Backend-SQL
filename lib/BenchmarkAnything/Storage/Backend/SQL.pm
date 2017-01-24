@@ -155,7 +155,7 @@ sub new {
 
 }
 
-sub get_elasticsearch_client {
+sub _get_elasticsearch_client {
 
     my ( $or_self ) = @_;
 
@@ -365,7 +365,7 @@ sub add_single_benchmark {
         $or_self->{searchengine}{elasticsearch}{index_single_added_values_immediately}
        )
     {
-        my ($or_es, $s_index, $s_type) = $or_self->get_elasticsearch_client;
+        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
 
         # Sic, we re-read from DB to get the very same data we
         # *really got* stored, not just what we wish it should
@@ -845,7 +845,7 @@ sub sync_search_engine
 
     if ($or_self->{searchengine}{elasticsearch})
     {
-        my ($or_es, $s_index, $s_type) = $or_self->get_elasticsearch_client;
+        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
         my $bulk = $or_es->bulk_helper(index => $s_index, type => $s_type);
         my $i_count_datapoints = $or_self->{query}->select_count_datapoints->fetch->[0];
 

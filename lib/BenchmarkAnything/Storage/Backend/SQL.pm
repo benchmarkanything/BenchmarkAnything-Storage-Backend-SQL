@@ -161,6 +161,7 @@ sub new {
     }
 
     $or_self->{searchengine} = $hr_atts->{searchengine} if $hr_atts->{searchengine};
+    $or_self->{debug}        = $hr_atts->{debug} || 0;
 
     return $or_self;
 

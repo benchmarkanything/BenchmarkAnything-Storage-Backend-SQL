@@ -368,10 +368,7 @@ sub add_single_benchmark {
         return 0;
     }
 
-    if (
-        $or_self->{searchengine} and
-        $or_self->{searchengine}{elasticsearch}{index_single_added_values_immediately}
-       )
+    if ( $or_self->{searchengine}{elasticsearch}{index_single_added_values_immediately} )
     {
         my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
 

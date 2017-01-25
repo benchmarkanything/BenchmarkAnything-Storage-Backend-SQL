@@ -708,6 +708,135 @@ sub get_full_benchmark_points {
     return \@a_bmk;
 }
 
+sub _get_elasticsearch_query
+{
+
+    my ( $or_self, $hr_ba_query ) = @_;
+
+    my $hr_es_query;
+    my $default_max_size = 10_000;
+
+    my $ar_ba_select   = $hr_ba_query->{select};   # !, aggregators!
+    my $ar_ba_where    = $hr_ba_query->{where};    # done; wildcards to entries with 'foo:', maybe fixed with analyzer settings
+    my $i_ba_limit     = $hr_ba_query->{limit};    # done
+    my $i_ba_offset    = $hr_ba_query->{offset};   # done
+    my $ar_ba_order_by = $hr_ba_query->{order_by}; # done
+
+    my @must_ranges;
+    my @must_matches;
+    my @must_not_matches;
+    my @should_matches;
+
+    # The 'sort' entry should get an always-the-same canonical
+    # structure because get_mapping/properties below relies on that.
+    my %sort =
+     !$ar_ba_order_by
+      ? ( sort => [ { VALUE_ID => { order => "asc" }} ] ) # default
+      : ( sort => [ map { my @e = ();
+                          # No error handling for bogus input here, hm...
+                          if (ref and ref eq 'ARRAY')
+                          {
+                              my $k         =    $_->[0];
+                              my $direction = lc($_->[1]) || 'asc';
+                              my $options   =    $_->[2]; # (eg. numeric=>1) - IGNORED! We let Elasticsearch figure out.
+                              @e = ({ $k => { order => $direction } });
+                          }
+                          elsif (defined($_)) # STRING
+                          {
+                              @e = ({ $_ => { order => "asc" } });
+                          }
+                          else
+                          {
+                              require Data::Dumper;
+                              print STDERR "_get_elasticsearch_query: unknown order_by clause: ".Data::Dumper::Dumper($_)."\n";
+                              return;
+                          }
+                          @e
+                      } @{ $ar_ba_order_by || [] }
+                  ]);
+    my %from = !$i_ba_offset ? () : ( from => $i_ba_offset+1 );
+    my %size = ( size => ($i_ba_limit || $default_max_size) );
+
+    my @operators = $or_self->benchmark_operators;
+    my %range_operator =
+     (
+      '<'  => 'lt',
+      '>'  => 'gt',
+      '<=' => 'lte',
+      '>=' => 'gte',
+     );
+    my %match_operator =
+     (
+      '='  => 1,
+     );
+    my %not_match_operator =
+     (
+      '!=' => 1,
+     );
+    my %wildcard_match_operator =
+     (
+      'like' => 1,
+     );
+    my %wildcard_not_match_operator =
+     (
+      'not like' => 1,
+     );
+    foreach my $w (@{ $ar_ba_where || [] })
+    {
+        my $op = $w->[0];       # operator
+        my $k  = $w->[1];       # key
+        my @v  = @$w[2..@$w-1]; # value(s)
+
+        my $es_op;
+        if ($es_op = $range_operator{$op})
+        {
+            push @must_ranges,        { range => { $k => { $es_op => $v[0] } } };
+        }
+        elsif ($es_op = $match_operator{$op})
+        {
+            if (@v > 1) {
+                push @should_matches, { match => { $k => $_ } } foreach @v;
+            } else {
+                push @must_matches,   { match => { $k => $v[0] } };
+            }
+        }
+        elsif ($es_op = $not_match_operator{$op})
+        {
+            push @must_not_matches,   { match => { $k => $_ } } foreach @v;
+        }
+        elsif ($es_op = $wildcard_match_operator{$op})
+        {
+            my $es_v = $v[0];
+            $es_v =~ s/%/*/g;
+            push @must_matches,       { wildcard => { $k => $es_v } };
+        }
+        elsif ($es_op = $wildcard_not_match_operator{$op})
+        {
+            my $es_v = $v[0];
+            $es_v =~ s/%/*/g;
+            push @must_not_matches,   { wildcard => { $k => $es_v } };
+        }
+        else
+        {
+            print STDERR "_get_elasticsearch_query: Unsupported operator: $op\n";
+            return;
+        }
+    }
+
+    $hr_es_query = { query => { bool => {
+                                         (@must_matches||@must_ranges ? (must     => [ @must_ranges, @must_matches ]) : ()),
+                                         (@must_not_matches           ? (must_not => [ @must_not_matches ]) : ()),
+                                         (@should_matches             ? (should   => [ @should_matches ],minimum_should_match => 1) : ()),
+                                        },
+                              },
+                     %from,
+                     %size,
+                     %sort,
+                   };
+
+    return $hr_es_query;
+}
+
 sub search_array {
 
     my ( $or_self, $hr_search ) = @_;
@@ -719,6 +848,62 @@ sub search_array {
         if ( my $ar_search_data = $or_self->{cache}->get("search_array||$s_key") ) {
             return $ar_search_data;
         }
+    }
+
+    if ( $or_self->{searchengine}{elasticsearch}{enable_query} )
+    {
+        # If anything goes wrong with Elasticsearch we just continue
+        # below with relational backend query.
+
+        my $hr_es_query = $or_self->_get_elasticsearch_query($hr_search);
+        require Data::Dumper;
+        print STDERR "elasticsearch query: ".Data::Dumper::Dumper($hr_es_query) if $or_self->{debug};
+
+        # If we could transform the query then we run it against Elasticsearch and return its result.
+        if (defined $hr_es_query)
+        {
+            # ===== client =====
+
+            my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
+
+            # ===== prepare =====
+
+            # If sort fields are of type 'text' then those fields needs to
+            # get their properties being declared as "fielddata":true.
+            my $field_mapping = {};
+            my @sort_fields = map {keys %$_} @{$hr_es_query->{sort}||[]};
+            if (@sort_fields) {
+                $field_mapping = $or_es->indices->get_mapping->{$s_index}{mappings}{$s_type}{properties};
+            }
+            foreach my $sort_field (@sort_fields)
+            {
+                if ($field_mapping->{$sort_field}{type} and $field_mapping->{$sort_field}{type} eq 'text')
+                {
+                    $or_es->indices->put_mapping
+                     (
+                      index => $s_index,
+                      type => $s_type,
+                      body => { $s_type => { properties => { $sort_field => { type => 'text',
+                                                                              fielddata => json_true,
+                                                                            }}}}
+                     );
+                }
+            }
+
+            # ===== search =====
+            my $hr_es_answer = $or_es->search(index => $s_index, type => $s_type, body => $hr_es_query);
+
+            if (
+                !$hr_es_answer->{timed_out} and
+                !$hr_es_answer->{_shards}{failed}
+               )
+            {
+                my @ar_es_result = map { $_->{_source} } @{$hr_es_answer->{hits}{hits} || []};
+                return \@ar_es_result;
+            }
+        }
+
+        # Else no-op, continue with relational backend query.
     }
 
     my $ar_result = $or_self

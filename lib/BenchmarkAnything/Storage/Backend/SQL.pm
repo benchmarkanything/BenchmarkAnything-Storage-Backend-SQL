@@ -30,6 +30,9 @@ my $hr_column_ba_mapping = {
     created_at     => 'CREATED_AT',
 };
 
+sub json_true  { bless( do{\(my $o = 1)}, 'JSON::PP::Boolean' ) }
+sub json_false { bless( do{\(my $o = 0)}, 'JSON::PP::Boolean' ) }
+
 my $fn_add_subsumed_point = sub {
 
     my ( $or_self, $hr_atts ) = @_;

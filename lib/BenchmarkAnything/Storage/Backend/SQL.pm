@@ -904,9 +904,15 @@ sub sync_search_engine
         my $bulk = $or_es->bulk_helper(index => $s_index, type => $s_type);
         my $i_count_datapoints = $or_self->{query}->select_count_datapoints->fetch->[0];
 
-        for (my $i = $i_start; $i < $i_count_datapoints; $i += $i_count)
+        for (my $i = $i_start; $i <= $i_count_datapoints; $i += $i_count)
         {
-            if ($b_force or not $or_es->exists(index => $s_index, type => $s_type, id => $i))
+            if ($b_force
+                # If the beginning or the end of a range do not exist we sync that window.
+                # Careful! This will not sync that window if there is a holein between! So
+                # if in doubt you better force a full sync.
+                or not $or_es->exists(index => $s_index, type => $s_type, id => $i)
+                or not $or_es->exists(index => $s_index, type => $s_type, id => $i+$i_count-1)
+                )
             {
                 # Make sure to query the ::Backend::SQL store!
                 my $bmks = $or_self->get_full_benchmark_points($i, $i_count);

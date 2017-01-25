@@ -583,12 +583,31 @@ sub get_stats {
     my $i_count_datapoints    = $or_self->{query}->select_count_datapoints->fetch->[0];
     my $i_count_metrics       = $or_self->{query}->select_count_metrics->fetch->[0];
     my $i_count_keys          = $or_self->{query}->select_count_keys->fetch->[0];
+    my %h_searchengine_stats  = ();
+
+    # Not strictly *stats* but useful information.
+    if ( $or_self->{searchengine}{elasticsearch}{index} )
+    {
+        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
+        %h_searchengine_stats =
+            (
+             elasticsearch =>
+             {
+                 index          => $or_self->{searchengine}{elasticsearch}{index} || 'UNKNOWN',
+                 type           => $or_self->{searchengine}{elasticsearch}{type}  || 'UNKNOWN',
+                 enable_query   => $or_self->{searchengine}{elasticsearch}{enable_query} || 0,
+                 cluster_health => $or_es->cluster->health,
+                 index_single_added_values_immediately => $or_self->{searchengine}{elasticsearch}{index_single_added_values_immediately} || 0,
+             },
+            );
+    }
 
     return {
         count_datapointkeys => 0+$i_count_datapointkeys,
         count_datapoints    => 0+$i_count_datapoints,
         count_metrics       => 0+$i_count_metrics,
         count_keys          => 0+$i_count_keys,
+        %h_searchengine_stats,
     };
 }
 

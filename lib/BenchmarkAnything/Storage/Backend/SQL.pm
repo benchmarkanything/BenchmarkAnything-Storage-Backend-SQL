@@ -461,6 +461,10 @@ sub gc {
     my ( $or_self, $hr_options ) = @_;
 
     $or_self->{query}->delete_processed_raw_bench_bundles;
+    if ($or_self->{searchengine}{elasticsearch}{enable_query}) {
+        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
+        $or_es->indices->clear_cache(index => $s_index);
+    }
 }
 
 sub add_multi_benchmark {

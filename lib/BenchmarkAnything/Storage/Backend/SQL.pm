@@ -1103,6 +1103,63 @@ sub benchmark_operators {
 
 }
 
+sub init_search_engine
+{
+    my ( $or_self, $b_force) = @_;
+
+    if ( $or_self->{searchengine}{elasticsearch}{index} )
+    {
+        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
+
+        # exists?
+        if ($or_es->indices->exists(index => $s_index) and not $b_force)
+        {
+            print STDERR "init_search_engine: index '$s_index' already exists, use force to delete and recreate.\n";
+            return;
+        }
+
+        # delete
+        if ($or_es->indices->exists(index => $s_index))
+        {
+            my $response = $or_es->indices->delete(index => $s_index);
+        }
+
+        # mappings
+        my $additional_mappings = $or_self->{searchengine}{elasticsearch}{additional_mappings} || {};
+        my $mappings =
+        {
+         $s_type => { properties => {
+                                     NAME       => { type         => 'text',
+                                                     store        => json_true,
+                                                   },
+                                     VALUE      => { type         => 'text',
+                                                   },
+                                     VALUE_ID   => { type         => 'long',
+                                                   },
+                                     UNIT       => { type         => 'text',
+                                                   },
+                                     CREATED_AT => { type         => 'date',
+                                                     format       => 'yyyy-MM-dd||yyyy-MM-dd HH:mm:ss',
+                                                   },
+                                    }
+                    },
+         %$additional_mappings,
+        };
+
+        # create
+        my $answer = $or_es->indices->create
+         (
+          index => $s_index,
+          body  => { mappings => $mappings },
+         );
+        if ($or_self->{debug})
+        {
+            require Data::Dumper;
+            print STDERR "create.answer: ".Data::Dumper::Dumper($answer);
+        }
+    }
+}
+
 sub sync_search_engine
 {
     my ( $or_self, $b_force, $i_start, $i_count) = @_;
@@ -1707,6 +1764,20 @@ isn't desired a false value must be passed.
 =back
 
 
+=head3 init_search_engine( $force )
+
+Initializes the configured search engine (Elasticsearch). If the index
+already exists it does nothing, except when you set C<$force> to a
+true value which deletes and re-creates the index. This is necessary
+for example to apply new type mappings.
+
+After a successful (re-)init you need to run C<sync_search_engine>.
+
+During (re-init) and sync you should disable querying by setting
+
+  searchengine.elasticsearch.enable_query: 0
+
+
 =head3 sync_search_engine( $force, $start, $count)
 
 Sync C<$count> (default 10000) entries from the relational backend
@@ -1786,6 +1857,28 @@ You can pass through a config entry for an external search engine
             #
             # which nodes to use
             nodes => [ 'localhost:9200' ],
+            #
+            # (OPTIONAL)
+            # Your additional application specific mappings,
+            # used when index is created.
+            additional_mappings => {
+                # type as defined above in elasticsearch.type
+                benchmarkanything => {
+                    # static key <properties>
+                    properties => {
+                        # field
+                        tapper_report => {
+                            type => long,
+                        },
+                        tapper_testrun => {
+                            type => long,
+                        },
+                        tapper_testplan => {
+                            type => long,
+                        },
+                    },
+                },
+            },
         },
     });
 

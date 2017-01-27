@@ -2,8 +2,10 @@ package BenchmarkAnything::Storage::Backend::SQL;
 # ABSTRACT: Autonomous SQL backend to store benchmarks
 
 use 5.008;
+use utf8;
 use strict;
 use warnings;
+use Encode 'encode_utf8';
 
 my $hr_default_config = {
     select_cache        => 0,
@@ -169,7 +171,7 @@ sub new {
 
 sub _get_elasticsearch_client {
 
-    my ( $or_self ) = @_;
+    my ( $or_self, $opt ) = @_;
 
     require Search::Elasticsearch;
 
@@ -179,7 +181,10 @@ sub _get_elasticsearch_client {
     die "benchmarkanything-storage-backend-sql: missing config 'searchengine.elasticsearch.type'"  unless $s_type;
 
     # Elasticsearch
-    my $or_es = Search::Elasticsearch->new(client => ($or_self->{searchengine}{elasticsearch}{client} || "5_0::Direct"));
+    my $or_es = Search::Elasticsearch->new
+     (client => ($or_self->{searchengine}{elasticsearch}{client} || "5_0::Direct"),
+      $opt->{ownjson} ? (serializer => "+BenchmarkAnything::Storage::Backend::SQL::Elasticsearch::Serializer::JSON::DontTouchMyUTF8") : (),
+     );
 
     return wantarray ? ($or_es, $s_index, $s_type) : $or_es;
 }
@@ -374,7 +379,7 @@ sub add_single_benchmark {
 
     if ( $or_self->{searchengine}{elasticsearch}{index_single_added_values_immediately} )
     {
-        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
+        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client({ownjson => 1});
 
         # Sic, we re-read from DB to get the very same data we
         # *really got* stored, not just what we wish it should
@@ -785,7 +790,7 @@ sub _get_elasticsearch_query
     {
         my $op = $w->[0];       # operator
         my $k  = $w->[1];       # key
-        my @v  = @$w[2..@$w-1]; # value(s)
+        my @v  = map { encode_utf8($_) } @$w[2..@$w-1]; # value(s)
 
         my $es_op;
         if ($es_op = $range_operator{$op})
@@ -864,7 +869,7 @@ sub search_array {
         {
             # ===== client =====
 
-            my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
+            my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client({ownjson => 1});
 
             # ===== prepare =====
 
@@ -1169,7 +1174,7 @@ sub sync_search_engine
 
     if ($or_self->{searchengine}{elasticsearch})
     {
-        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
+        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client({ownjson => 1});
         my $bulk = $or_es->bulk_helper(index => $s_index, type => $s_type);
         my $i_count_datapoints = $or_self->{query}->select_count_datapoints->fetch->[0];
 

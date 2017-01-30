@@ -5,7 +5,6 @@ use 5.008;
 use utf8;
 use strict;
 use warnings;
-use Encode 'encode_utf8';
 
 my $hr_default_config = {
     select_cache        => 0,
@@ -169,25 +168,6 @@ sub new {
 
 }
 
-sub _get_elasticsearch_client {
-
-    my ( $or_self, $opt ) = @_;
-
-    require Search::Elasticsearch;
-
-    my $s_index = $or_self->{searchengine}{elasticsearch}{index};
-    my $s_type  = $or_self->{searchengine}{elasticsearch}{type};
-    die "benchmarkanything-storage-backend-sql: missing config 'searchengine.elasticsearch.index'" unless $s_index;
-    die "benchmarkanything-storage-backend-sql: missing config 'searchengine.elasticsearch.type'"  unless $s_type;
-
-    # Elasticsearch
-    my $or_es = Search::Elasticsearch->new
-     (client => ($or_self->{searchengine}{elasticsearch}{client} || "5_0::Direct"),
-      $opt->{ownjson} ? (serializer => "+BenchmarkAnything::Storage::Backend::SQL::Elasticsearch::Serializer::JSON::DontTouchMyUTF8") : (),
-     );
-
-    return wantarray ? ($or_es, $s_index, $s_type) : $or_es;
-}
 
 sub add_single_benchmark {
 
@@ -379,7 +359,11 @@ sub add_single_benchmark {
 
     if ( $or_self->{searchengine}{elasticsearch}{index_single_added_values_immediately} )
     {
-        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client({ownjson => 1});
+        require BenchmarkAnything::Storage::Search::Elasticsearch;
+        my ($or_es, $s_index, $s_type) = BenchmarkAnything::Storage::Search::Elasticsearch::get_elasticsearch_client
+         (
+          {searchengine => $or_self->{searchengine}, ownjson => 1}
+         );
 
         # Sic, we re-read from DB to get the very same data we
         # *really got* stored, not just what we wish it should
@@ -467,7 +451,11 @@ sub gc {
 
     $or_self->{query}->delete_processed_raw_bench_bundles;
     if ($or_self->{searchengine}{elasticsearch}{enable_query}) {
-        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
+        require BenchmarkAnything::Storage::Search::Elasticsearch;
+        my ($or_es, $s_index, $s_type) = BenchmarkAnything::Storage::Search::Elasticsearch::get_elasticsearch_client
+         (
+          {searchengine => $or_self->{searchengine}}
+         );
         $or_es->indices->clear_cache(index => $s_index);
     }
 }
@@ -597,7 +585,11 @@ sub get_stats {
     # Not strictly *stats* but useful information.
     if ( $or_self->{searchengine}{elasticsearch}{index} )
     {
-        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
+        require BenchmarkAnything::Storage::Search::Elasticsearch;
+        my ($or_es, $s_index, $s_type) = BenchmarkAnything::Storage::Search::Elasticsearch::get_elasticsearch_client
+         (
+          {searchengine => $or_self->{searchengine}}
+         );
         %h_searchengine_stats =
             (
              elasticsearch =>
@@ -713,135 +705,6 @@ sub get_full_benchmark_points {
     return \@a_bmk;
 }
 
-sub _get_elasticsearch_query
-{
-
-    my ( $or_self, $hr_ba_query ) = @_;
-
-    my $hr_es_query;
-    my $default_max_size = 10_000;
-
-    my $ar_ba_select   = $hr_ba_query->{select};   # !, aggregators!
-    my $ar_ba_where    = $hr_ba_query->{where};    # done; wildcards to entries with 'foo:', maybe fixed with analyzer settings
-    my $i_ba_limit     = $hr_ba_query->{limit};    # done
-    my $i_ba_offset    = $hr_ba_query->{offset};   # done
-    my $ar_ba_order_by = $hr_ba_query->{order_by}; # done
-
-    my @must_ranges;
-    my @must_matches;
-    my @must_not_matches;
-    my @should_matches;
-
-    # The 'sort' entry should get an always-the-same canonical
-    # structure because get_mapping/properties below relies on that.
-    my %sort =
-     !$ar_ba_order_by
-      ? ( sort => [ { VALUE_ID => { order => "asc" }} ] ) # default
-      : ( sort => [ map { my @e = ();
-                          # No error handling for bogus input here, hm...
-                          if (ref and ref eq 'ARRAY')
-                          {
-                              my $k         =    $_->[0];
-                              my $direction = lc($_->[1]) || 'asc';
-                              my $options   =    $_->[2]; # (eg. numeric=>1) - IGNORED! We let Elasticsearch figure out.
-                              @e = ({ $k => { order => $direction } });
-                          }
-                          elsif (defined($_)) # STRING
-                          {
-                              @e = ({ $_ => { order => "asc" } });
-                          }
-                          else
-                          {
-                              require Data::Dumper;
-                              print STDERR "_get_elasticsearch_query: unknown order_by clause: ".Data::Dumper::Dumper($_)."\n";
-                              return;
-                          }
-                          @e
-                      } @{ $ar_ba_order_by || [] }
-                  ]);
-    my %from = !$i_ba_offset ? () : ( from => $i_ba_offset+1 );
-    my %size = ( size => ($i_ba_limit || $default_max_size) );
-
-    my @operators = $or_self->benchmark_operators;
-    my %range_operator =
-     (
-      '<'  => 'lt',
-      '>'  => 'gt',
-      '<=' => 'lte',
-      '>=' => 'gte',
-     );
-    my %match_operator =
-     (
-      '='  => 1,
-     );
-    my %not_match_operator =
-     (
-      '!=' => 1,
-     );
-    my %wildcard_match_operator =
-     (
-      'like' => 1,
-     );
-    my %wildcard_not_match_operator =
-     (
-      'not like' => 1,
-     );
-    foreach my $w (@{ $ar_ba_where || [] })
-    {
-        my $op = $w->[0];       # operator
-        my $k  = $w->[1];       # key
-        my @v  = map { encode_utf8($_) } @$w[2..@$w-1]; # value(s)
-
-        my $es_op;
-        if ($es_op = $range_operator{$op})
-        {
-            push @must_ranges,        { range => { $k => { $es_op => $v[0] } } };
-        }
-        elsif ($es_op = $match_operator{$op})
-        {
-            if (@v > 1) {
-                push @should_matches, { match => { $k => $_ } } foreach @v;
-            } else {
-                push @must_matches,   { match => { $k => $v[0] } };
-            }
-        }
-        elsif ($es_op = $not_match_operator{$op})
-        {
-            push @must_not_matches,   { match => { $k => $_ } } foreach @v;
-        }
-        elsif ($es_op = $wildcard_match_operator{$op})
-        {
-            my $es_v = $v[0];
-            $es_v =~ s/%/*/g;
-            push @must_matches,       { wildcard => { $k => $es_v } };
-        }
-        elsif ($es_op = $wildcard_not_match_operator{$op})
-        {
-            my $es_v = $v[0];
-            $es_v =~ s/%/*/g;
-            push @must_not_matches,   { wildcard => { $k => $es_v } };
-        }
-        else
-        {
-            print STDERR "_get_elasticsearch_query: Unsupported operator: $op\n";
-            return;
-        }
-    }
-
-    $hr_es_query = { query => { bool => {
-                                         (@must_matches||@must_ranges ? (must     => [ @must_ranges, @must_matches ]) : ()),
-                                         (@must_not_matches           ? (must_not => [ @must_not_matches ]) : ()),
-                                         (@should_matches             ? (should   => [ @should_matches ],minimum_should_match => 1) : ()),
-                                        },
-                              },
-                     %from,
-                     %size,
-                     %sort,
-                   };
-
-    return $hr_es_query;
-}
-
 sub search_array {
 
     my ( $or_self, $hr_search ) = @_;
@@ -860,7 +723,8 @@ sub search_array {
         # If anything goes wrong with Elasticsearch we just continue
         # below with relational backend query.
 
-        my $hr_es_query = $or_self->_get_elasticsearch_query($hr_search);
+        require BenchmarkAnything::Storage::Search::Elasticsearch;
+        my $hr_es_query = BenchmarkAnything::Storage::Search::Elasticsearch::get_elasticsearch_query($hr_search);
         require Data::Dumper;
         print STDERR "elasticsearch query: ".Data::Dumper::Dumper($hr_es_query) if $or_self->{debug};
 
@@ -869,7 +733,11 @@ sub search_array {
         {
             # ===== client =====
 
-            my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client({ownjson => 1});
+            require BenchmarkAnything::Storage::Search::Elasticsearch;
+            my ($or_es, $s_index, $s_type) = BenchmarkAnything::Storage::Search::Elasticsearch::get_elasticsearch_client
+             (
+              {searchengine => $or_self->{searchengine}, ownjson => 1}
+             );
 
             # ===== prepare =====
 
@@ -1114,7 +982,11 @@ sub init_search_engine
 
     if ( $or_self->{searchengine}{elasticsearch}{index} )
     {
-        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client;
+        require BenchmarkAnything::Storage::Search::Elasticsearch;
+        my ($or_es, $s_index, $s_type) = BenchmarkAnything::Storage::Search::Elasticsearch::get_elasticsearch_client
+         (
+          {searchengine => $or_self->{searchengine}}
+         );
 
         # exists?
         if ($or_es->indices->exists(index => $s_index) and not $b_force)
@@ -1174,7 +1046,11 @@ sub sync_search_engine
 
     if ($or_self->{searchengine}{elasticsearch})
     {
-        my ($or_es, $s_index, $s_type) = $or_self->_get_elasticsearch_client({ownjson => 1});
+        require BenchmarkAnything::Storage::Search::Elasticsearch;
+        my ($or_es, $s_index, $s_type) = BenchmarkAnything::Storage::Search::Elasticsearch::get_elasticsearch_client
+         (
+          {searchengine => $or_self->{searchengine}, ownjson => 1}
+         );
         my $bulk = $or_es->bulk_helper(index => $s_index, type => $s_type);
         my $i_count_datapoints = $or_self->{query}->select_count_datapoints->fetch->[0];
 

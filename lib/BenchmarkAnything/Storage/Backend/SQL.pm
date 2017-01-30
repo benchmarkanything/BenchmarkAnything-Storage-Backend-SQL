@@ -29,7 +29,7 @@ my $hr_column_ba_mapping = {
     bench          => 'NAME',
     bench_value    => 'VALUE',
     bench_unit     => 'UNIT',
-    created_at     => 'CREATED_AT',
+    created_at     => 'CREATED',
 };
 
 sub json_true  { bless( do{\(my $o = 1)}, 'JSON::PP::Boolean' ) }
@@ -384,7 +384,7 @@ sub add_single_benchmark {
         # Sic, we re-read from DB to get the very same data we
         # *really got* stored, not just what we wish it should
         # have stored. That gives us translations like
-        # num->string, CREATED_AT date, etc., etc.
+        # num->string, CREATED date, etc., etc.
 
         my $hr_bmk = $or_self->get_single_benchmark_point($VALUE_ID);
         my $ret = $or_es->index(index => $s_index,
@@ -652,7 +652,7 @@ sub get_single_benchmark_point {
     $hr_result->{NAME}  = $hr_essentials->{bench};
     $hr_result->{VALUE} = $hr_essentials->{bench_value};
     $hr_result->{VALUE_ID} = $hr_essentials->{bench_value_id};
-    $hr_result->{CREATED_AT} = $hr_essentials->{created_at};
+    $hr_result->{CREATED} = $hr_essentials->{created_at};
     $hr_result->{UNIT}  = $hr_essentials->{bench_unit} if $hr_essentials->{bench_unit};
 
     # cache!
@@ -1143,7 +1143,7 @@ sub init_search_engine
                                                    },
                                      UNIT       => { type         => 'text',
                                                    },
-                                     CREATED_AT => { type         => 'date',
+                                     CREATED    => { type         => 'date',
                                                      format       => 'yyyy-MM-dd||yyyy-MM-dd HH:mm:ss',
                                                    },
                                     }
@@ -1644,7 +1644,7 @@ how many metrics, how many additional keys, are stored.
 =head3 get_single_benchmark_point
 
 Get a single data point from the database including all essential
-fields (NAME, VALUE, UNIT, VALUE_ID, CREATED_AT) and all additional
+fields (NAME, VALUE, UNIT, VALUE_ID, CREATED) and all additional
 fields.
 
  my $point = $or_bench->get_single_benchmark_point($value_id);
@@ -1653,7 +1653,7 @@ fields.
 =head3 get_full_benchmark_points
 
 Get C<$count> data points from the database including all essential
-fields (NAME, VALUE, UNIT, VALUE_ID, CREATED_AT) and all additional
+fields (NAME, VALUE, UNIT, VALUE_ID, CREATED) and all additional
 fields, beginning with C<$value_id>.
 
  my $point = $or_bench->get_full_benchmark_points($value_id, $count);

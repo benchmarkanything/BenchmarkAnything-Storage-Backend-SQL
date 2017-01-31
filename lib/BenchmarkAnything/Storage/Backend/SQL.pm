@@ -1741,6 +1741,14 @@ Returns the list of operators supported by the query language. This is
 provided for frontend systems that support creating queries
 automatically.
 
+=head3 json_true
+
+Auxiliary function for Elasticsearch JSON data.
+
+=head3 json_false
+
+Auxiliary function for Elasticsearch JSON data.
+
 =head2 Elasticsearch support
 
 =head3 Config

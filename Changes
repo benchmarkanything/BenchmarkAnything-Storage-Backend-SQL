@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - Elasticsearch support
 
 0.020     2016-08-19
         - *Gna* - mysql backend: revert convert on comparison operators

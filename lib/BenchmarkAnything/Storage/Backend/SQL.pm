@@ -709,6 +709,8 @@ sub search_array {
 
     my ( $or_self, $hr_search ) = @_;
 
+    my $debug = $or_self->{debug} || $or_self->{searchengine}{elasticsearch}{debug};
+
     my $s_key;
     if ( $or_self->{cache} ) {
         require JSON::XS;
@@ -718,6 +720,18 @@ sub search_array {
         }
     }
 
+    if ( $debug )
+    {
+        require JSON::XS;
+        require Data::Dumper;
+        print STDERR ',-------------------'."\n";
+        print STDERR "benchmarkanything query:\n";
+        print STDERR "echo '\n";
+        print STDERR JSON::XS->new->pretty->encode($hr_search);
+        print STDERR "' | benchmarkanything-storage search\n";
+        print STDERR '`-------------------'."\n";
+    }
+
     if ( $or_self->{searchengine}{elasticsearch}{enable_query} )
     {
         # If anything goes wrong with Elasticsearch we just continue
@@ -725,8 +739,18 @@ sub search_array {
 
         require BenchmarkAnything::Storage::Search::Elasticsearch;
         my $hr_es_query = BenchmarkAnything::Storage::Search::Elasticsearch::get_elasticsearch_query($hr_search);
-        require Data::Dumper;
-        print STDERR "elasticsearch query: ".Data::Dumper::Dumper($hr_es_query) if $or_self->{debug};
+
+        if ($debug)
+        {
+            require JSON::XS;
+            require Data::Dumper;
+            print STDERR ',-------------------'."\n";
+            print STDERR "elasticsearch query:\n";
+            print STDERR "curl -s -XGET 'http://localhost:9200/tapper/benchmarkanything/_search?pretty' -d '\n";
+            print STDERR JSON::XS->new->pretty->encode($hr_es_query);
+            print STDERR "'\n";
+            print STDERR '`-------------------'."\n";
+        }
 
         # If we could transform the query then we run it against Elasticsearch and return its result.
         if (defined $hr_es_query)
@@ -980,6 +1004,8 @@ sub init_search_engine
 {
     my ( $or_self, $b_force) = @_;
 
+    my $debug = $or_self->{debug} || $or_self->{searchengine}{elasticsearch}{debug};
+
     if ( $or_self->{searchengine}{elasticsearch}{index} )
     {
         require BenchmarkAnything::Storage::Search::Elasticsearch;
@@ -1035,11 +1061,7 @@ sub init_search_engine
           index => $s_index,
           body  => { mappings => $mappings },
          );
-        if ($or_self->{debug})
-        {
-            require Data::Dumper;
-            print STDERR "create.answer: ".Data::Dumper::Dumper($answer);
-        }
+        print STDERR "create.answer:\n".Data::Dumper::Dumper($answer) if $debug;
     }
 }
 

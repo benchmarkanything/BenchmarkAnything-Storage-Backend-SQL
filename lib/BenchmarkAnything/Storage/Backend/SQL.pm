@@ -1002,7 +1002,6 @@ sub init_search_engine
         }
 
         # mappings
-        my $additional_mappings = $or_self->{searchengine}{elasticsearch}{additional_mappings} || {};
         my $mappings =
         {
          $s_type => { properties => {
@@ -1020,8 +1019,15 @@ sub init_search_engine
                                                    },
                                     }
                     },
-         %$additional_mappings,
         };
+        require JSON::XS;
+        require Hash::Merge;
+        require Data::Dumper;
+        local $Types::Serialiser::true;
+        my $merge = Hash::Merge->new( 'RIGHT_PRECEDENT' );
+        my $additional_mappings = $or_self->{searchengine}{elasticsearch}{additional_mappings} || {};
+        $mappings = $merge->merge($mappings, $additional_mappings);
+        print STDERR "create.mappings:\n".JSON::XS->new->convert_blessed->pretty->encode($mappings) if $debug;
 
         # create
         my $answer = $or_es->indices->create
@@ -1740,8 +1746,15 @@ You can pass through a config entry for an external search engine
             nodes => [ 'localhost:9200' ],
             #
             # (OPTIONAL)
-            # Your additional application specific mappings,
-            # used when index is created.
+            # Your additional application specific mappings, used when
+            # index is created.
+            #
+            # WARNING: You are allowed to overwrite the pre-defined
+            # defaults for the built-in fields (NAME, VALUE, VALUE_ID,
+            # UNIT, CREATED) as it is a RIGHT_PRECEDENT hash merge with
+            # your additional_mappings on the right side. So if you
+            # touch the internal fields you better know what you are
+            # doing.
             additional_mappings => {
                 # type as defined above in elasticsearch.type
                 benchmarkanything => {

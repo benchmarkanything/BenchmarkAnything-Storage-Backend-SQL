@@ -1030,8 +1030,8 @@ sub init_search_engine
         # mappings
         my $mappings =
         {
-         $s_type => { properties => {
-                                     NAME       => { type         => 'text',
+          $s_type => { properties => {
+                                     NAME       => { type         => 'keyword',
                                                      store        => json_true,
                                                    },
                                      VALUE      => { type         => 'text',

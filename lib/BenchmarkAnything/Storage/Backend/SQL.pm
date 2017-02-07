@@ -726,9 +726,9 @@ sub search_array {
         require Data::Dumper;
         print STDERR ',-------------------'."\n";
         print STDERR "benchmarkanything query:\n";
-        print STDERR "echo '\n";
+        print STDERR "benchmarkanything-storage search -d '\n";
         print STDERR JSON::XS->new->pretty->encode($hr_search);
-        print STDERR "' | benchmarkanything-storage search\n";
+        print STDERR "'\n";
         print STDERR '`-------------------'."\n";
     }
 

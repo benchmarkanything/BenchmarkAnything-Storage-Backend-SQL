@@ -157,6 +157,7 @@ sub new {
             dbh    => $hr_atts->{dbh},
             driver => $hr_atts->{dbh}{Driver}{Name},
             debug  => $hr_atts->{debug} || 0,
+            verbose=> $hr_atts->{verbose} || 0,
             config => $or_self->{config},
         });
     }
@@ -1120,6 +1121,7 @@ Create a new B<BenchmarkAnything::Storage::Backend::SQL> object.
     my $or_bench = BenchmarkAnything::Storage::Backend::SQL->new({
         dbh    => $or_dbh,
         debug  => 0,
+        verbose=> 0,
         config => YAML::Syck::LoadFile('~/conf/tapper_benchmark.conf'),
         searchengine => ... # optional, see below at "Elasticsearch support"
     });
@@ -1139,6 +1141,11 @@ B<Configuration> for details.
 
 Setting C<debug> to a true value results in multiple debugging informations
 written to STDOUT. The default is 0.
+
+=item verbose [optional]
+
+Setting C<verbose> to a true value provides more logs or status
+information. The default is 0.
 
 =back
 
@@ -1626,8 +1633,8 @@ Containing the names of the tables used bei B<BenchmarkAnything::Storage::Backen
         unit_table                       => 'bench_units',
         benchmark_table                  => 'benchs',
         benchmark_value_table            => 'bench_values',
-        benchmark_backup_value_table     => 'bench_backup_values',
         subsume_type_table               => 'bench_subsume_types',
+        benchmark_backup_value_table     => 'bench_backup_values',
         additional_type_table            => 'bench_additional_types',
         additional_value_table           => 'bench_additional_values',
         additional_relation_table        => 'bench_additional_relations',

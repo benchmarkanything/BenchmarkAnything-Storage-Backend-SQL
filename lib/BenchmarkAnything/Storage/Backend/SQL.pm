@@ -1030,21 +1030,17 @@ sub init_search_engine
         # mappings
         my $mappings =
         {
-          $s_type => { properties => {
-                                     NAME       => { type         => 'keyword',
-                                                     store        => json_true,
-                                                   },
-                                     VALUE      => { type         => 'text',
-                                                   },
-                                     VALUE_ID   => { type         => 'long',
-                                                   },
-                                     UNIT       => { type         => 'text',
-                                                   },
-                                     CREATED    => { type         => 'date',
-                                                     format       => 'yyyy-MM-dd||yyyy-MM-dd HH:mm:ss',
-                                                   },
-                                    }
-                    },
+         $s_type => {
+          dynamic_templates =>
+          [
+           { "core_field_NAME"     => { "match" => "NAME",     "mapping" => { "type" => "keyword", "store" => json_true } } },
+           { "core_field_VALUE"    => { "match" => "VALUE",    "mapping" => { "type" => "text", } } },
+           { "core_field_UNIT"     => { "match" => "UNIT",     "mapping" => { "type" => "text", } } },
+           { "core_field_VALUE_ID" => { "match" => "VALUE_ID", "mapping" => { "type" => "long", } } },
+           { "core_field_CREATED"  => { "match" => "CREATED",  "mapping" => { "type" => "date", format => 'yyyy-MM-dd||yyyy-MM-dd HH:mm:ss', } } },
+           { "non_core_fields"     => { "match" => "*",        "mapping" => { "type" => "keyword", } } },
+          ]
+         }
         };
         require JSON::XS;
         require Hash::Merge;

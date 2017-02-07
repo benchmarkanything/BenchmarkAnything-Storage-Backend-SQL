@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - default non-core fields mapping type: keyword
 
 0.021     2017-01-31
         - Elasticsearch support

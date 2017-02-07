@@ -603,6 +603,10 @@ sub get_stats {
                  index_single_added_values_immediately => $or_self->{searchengine}{elasticsearch}{index_single_added_values_immediately} || 0,
              },
             );
+        # boolean -> 0/1
+        for (values %{$h_searchengine_stats{elasticsearch}{cluster_health}}) {
+            $_ = $_ ? 1 : 0 if ref eq 'JSON::XS::Boolean';
+        }
     }
 
     return {

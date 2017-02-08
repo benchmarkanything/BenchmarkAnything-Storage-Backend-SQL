@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.023     2017-02-08
         - parallel sync_search_engine
 
 0.022     2017-02-07

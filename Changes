@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - parallel sync_search_engine
 
 0.022     2017-02-07
         - default non-core fields mapping type: keyword

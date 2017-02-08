@@ -5,6 +5,16 @@ use strict;
 use warnings;
 use Data::Dumper;
 
+=head2 json_true
+
+Boolean true in JSON documents.
+
+=head2 json_false
+
+Boolean false in JSON documents.
+
+=cut
+
 sub json_true  { bless( do{\(my $o = 1)}, 'JSON::PP::Boolean' ) }
 sub json_false { bless( do{\(my $o = 0)}, 'JSON::PP::Boolean' ) }
 
@@ -55,7 +65,9 @@ sub _sync_search_engine_process_chunk
     }
 }
 
-=head2 sync_search_engine ($or_sql, $b_force, $i_start, $i_bulkcount)
+=head2 sync_search_engine_classic ($or_sql, $b_force, $i_start, $i_bulkcount)
+
+Sync in linear way.
 
 =over 4
 

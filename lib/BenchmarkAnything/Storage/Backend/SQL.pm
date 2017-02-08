@@ -163,6 +163,7 @@ sub new {
 
     $or_self->{searchengine} = $hr_atts->{searchengine} if $hr_atts->{searchengine};
     $or_self->{debug}        = $hr_atts->{debug} || 0;
+    $or_self->{verbose}      = $hr_atts->{verbose} || 0;
 
     return $or_self;
 
@@ -1004,99 +1005,14 @@ sub init_search_engine
 {
     my ( $or_self, $b_force) = @_;
 
-    my $debug = $or_self->{debug} || $or_self->{searchengine}{elasticsearch}{debug};
-
-    if ( $or_self->{searchengine}{elasticsearch}{index} )
-    {
-        require BenchmarkAnything::Storage::Search::Elasticsearch;
-        my ($or_es, $s_index, $s_type) = BenchmarkAnything::Storage::Search::Elasticsearch::get_elasticsearch_client
-         (
-          {searchengine => $or_self->{searchengine}}
-         );
-
-        # exists?
-        if ($or_es->indices->exists(index => $s_index) and not $b_force)
-        {
-            print STDERR "init_search_engine: index '$s_index' already exists, use force to delete and recreate.\n";
-            return;
-        }
-
-        # delete
-        if ($or_es->indices->exists(index => $s_index))
-        {
-            my $response = $or_es->indices->delete(index => $s_index);
-        }
-
-        # mappings
-        my $mappings =
-        {
-         $s_type => {
-          dynamic_templates =>
-          [
-           { "core_field_NAME"     => { "match" => "NAME",     "mapping" => { "type" => "keyword", "store" => json_true } } },
-           { "core_field_VALUE"    => { "match" => "VALUE",    "mapping" => { "type" => "text", } } },
-           { "core_field_UNIT"     => { "match" => "UNIT",     "mapping" => { "type" => "text", } } },
-           { "core_field_VALUE_ID" => { "match" => "VALUE_ID", "mapping" => { "type" => "long", } } },
-           { "core_field_CREATED"  => { "match" => "CREATED",  "mapping" => { "type" => "date", format => 'yyyy-MM-dd||yyyy-MM-dd HH:mm:ss', } } },
-           { "non_core_fields"     => { "match" => "*",        "mapping" => { "type" => "keyword", } } },
-          ]
-         }
-        };
-        require JSON::XS;
-        require Hash::Merge;
-        require Data::Dumper;
-        local $Types::Serialiser::true;
-        my $merge = Hash::Merge->new( 'RIGHT_PRECEDENT' );
-        my $additional_mappings = $or_self->{searchengine}{elasticsearch}{additional_mappings} || {};
-        $mappings = $merge->merge($mappings, $additional_mappings);
-        print STDERR "create.mappings:\n".JSON::XS->new->convert_blessed->pretty->encode($mappings) if $debug;
-
-        # create
-        my $answer = $or_es->indices->create
-         (
-          index => $s_index,
-          body  => { mappings => $mappings },
-         );
-        print STDERR "create.answer:\n".Data::Dumper::Dumper($answer) if $debug;
-    }
+    require BenchmarkAnything::Storage::Backend::SQL::Search;
+    BenchmarkAnything::Storage::Backend::SQL::Search::init_search_engine (@_);
 }
 
 sub sync_search_engine
 {
-    my ( $or_self, $b_force, $i_start, $i_count) = @_;
-
-    $i_start ||= 1;
-    $i_count ||= 10_000;
-
-    if ($or_self->{searchengine}{elasticsearch})
-    {
-        require BenchmarkAnything::Storage::Search::Elasticsearch;
-        my ($or_es, $s_index, $s_type) = BenchmarkAnything::Storage::Search::Elasticsearch::get_elasticsearch_client
-         (
-          {searchengine => $or_self->{searchengine}, ownjson => 1}
-         );
-        my $bulk = $or_es->bulk_helper(index => $s_index, type => $s_type);
-        my $i_count_datapoints = $or_self->{query}->select_count_datapoints->fetch->[0];
-
-        for (my $i = $i_start; $i <= $i_count_datapoints; $i += $i_count)
-        {
-            if ($b_force
-                # If the beginning or the end of a range do not exist we sync that window.
-                # Careful! This will not sync that window if there is a holein between! So
-                # if in doubt you better force a full sync.
-                or not $or_es->exists(index => $s_index, type => $s_type, id => $i)
-                or not $or_es->exists(index => $s_index, type => $s_type, id => $i+$i_count-1)
-                )
-            {
-                # Make sure to query the ::Backend::SQL store!
-                my $bmks = $or_self->get_full_benchmark_points($i, $i_count);
-                $bulk->index({ id => $_->{VALUE_ID}, source => $_}) foreach @$bmks;
-                $bulk->flush;
-            }
-        }
-    } else {
-            # Unsupported search engine
-    }
+    require BenchmarkAnything::Storage::Backend::SQL::Search;
+    BenchmarkAnything::Storage::Backend::SQL::Search::sync_search_engine (@_);
 }
 
 1;
@@ -1689,6 +1605,7 @@ Sync C<$count> (default 10000) entries from the relational backend
 into the search engine (Elasticsearch) for indexing, beginning at
 C<$start> (default 1). Already existing entries in Elasticsearch are
 skipped unless C<$force> is set to a true value.
+
 
 =head1 Configuration
 

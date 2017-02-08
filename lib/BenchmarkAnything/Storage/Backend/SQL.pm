@@ -31,9 +31,6 @@ my $hr_column_ba_mapping = {
     created_at     => 'CREATED',
 };
 
-sub json_true  { bless( do{\(my $o = 1)}, 'JSON::PP::Boolean' ) }
-sub json_false { bless( do{\(my $o = 0)}, 'JSON::PP::Boolean' ) }
-
 my $fn_add_subsumed_point = sub {
 
     my ( $or_self, $hr_atts ) = @_;
@@ -165,6 +162,7 @@ sub new {
     $or_self->{searchengine} = $hr_atts->{searchengine} if $hr_atts->{searchengine};
     $or_self->{debug}        = $hr_atts->{debug} || 0;
     $or_self->{verbose}      = $hr_atts->{verbose} || 0;
+    $or_self->{dbh_config}   = $hr_atts->{dbh_config};
 
     return $or_self;
 
@@ -782,12 +780,13 @@ sub search_array {
             {
                 if ($field_mapping->{$sort_field}{type} and $field_mapping->{$sort_field}{type} eq 'text')
                 {
+                    require BenchmarkAnything::Storage::Backend::SQL::Search;
                     $or_es->indices->put_mapping
                      (
                       index => $s_index,
                       type => $s_type,
                       body => { $s_type => { properties => { $sort_field => { type => 'text',
-                                                                              fielddata => json_true,
+                                                                              fielddata => BenchmarkAnything::Storage::Backend::SQL::Search::json_true(),
                                                                             }}}}
                      );
                 }

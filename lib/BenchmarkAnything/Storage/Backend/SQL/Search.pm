@@ -1,13 +1,32 @@
 package BenchmarkAnything::Storage::Backend::SQL::Search;
 # ABSTRACT: searchengine support functions
 
+use strict;
+use warnings;
+use Data::Dumper;
+
+sub json_true  { bless( do{\(my $o = 1)}, 'JSON::PP::Boolean' ) }
+sub json_false { bless( do{\(my $o = 0)}, 'JSON::PP::Boolean' ) }
+
 sub _sync_search_engine_process_chunk
 {
-    my ( $or_sql, $b_force, $i_start, $i_end) = @_;
+    my ( $orig_sql, $b_force, $i_start, $i_end) = @_;
 
-    my $i_count = $i_end - $i_start + 1;
+    # === use own connection so we can run this function in parallel ===
 
-    print STDERR "search-sync - process chunk: $i_start..$i_end ($i_count elements, force=$b_force)\n" if $or_sql->{verbose} || $or_sql->{debug};
+    my $dbh = DBI->connect($orig_sql->{dbh_config}{dsn},
+                           $orig_sql->{dbh_config}{user},
+                           $orig_sql->{dbh_config}{password}, {'RaiseError' => 1})
+        or die "benchmarkanything: can not connect: ".$DBI::errstr;
+    my $or_sql = BenchmarkAnything::Storage::Backend::SQL->new({dbh          => $dbh,
+                                                                dbh_config   => $orig_sql->{dbh_config},
+                                                                debug        => $orig_sql->{debug},
+                                                                force        => $orig_sql->{force},
+                                                                verbose      => $orig_sql->{verbose},
+                                                                searchengine => $orig_sql->{searchengine},
+                                                               });
+
+    # === elasticsearch client ===
 
     require BenchmarkAnything::Storage::Search::Elasticsearch;
     my ($or_es, $s_index, $s_type) = BenchmarkAnything::Storage::Search::Elasticsearch::get_elasticsearch_client
@@ -15,6 +34,11 @@ sub _sync_search_engine_process_chunk
       {searchengine => $or_sql->{searchengine}, ownjson => 1}
      );
     my $bulk = $or_es->bulk_helper(index => $s_index, type => $s_type);
+
+    # === bulk index ===
+
+    my $i_count = $i_end - $i_start + 1;
+    print STDERR "search-sync - process chunk: $i_start..$i_end ($i_count elements, force=$b_force)\n" if $or_sql->{verbose} || $or_sql->{debug};
 
     if ($b_force
         # If the beginning or the end of a range do not exist we sync that window.

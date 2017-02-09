@@ -576,11 +576,9 @@ sub get_stats {
 
     my ( $or_self ) = @_;
 
-    my $i_count_datapointkeys = $or_self->{query}->select_count_datapointkeys->fetch->[0];
-    my $i_count_datapoints    = $or_self->{query}->select_count_datapoints->fetch->[0];
-    my $i_count_metrics       = $or_self->{query}->select_count_metrics->fetch->[0];
-    my $i_count_keys          = $or_self->{query}->select_count_keys->fetch->[0];
     my %h_searchengine_stats  = ();
+    my %h_flat_searchengine_stats = ();
+    my %stats = ();
 
     # Not strictly *stats* but useful information.
     if ( $or_self->{searchengine}{elasticsearch}{index} )
@@ -590,30 +588,34 @@ sub get_stats {
          (
           {searchengine => $or_self->{searchengine}}
          );
+
+        $stats{count_datapoints} = (map {chomp; $_} split(qr/ +/, $or_es->cat->count))[2];
         %h_searchengine_stats =
             (
-             elasticsearch =>
-             {
-                 index          => $or_self->{searchengine}{elasticsearch}{index} || 'UNKNOWN',
-                 type           => $or_self->{searchengine}{elasticsearch}{type}  || 'UNKNOWN',
-                 enable_query   => $or_self->{searchengine}{elasticsearch}{enable_query} || 0,
-                 cluster_health => $or_es->cluster->health,
-                 index_single_added_values_immediately => $or_self->{searchengine}{elasticsearch}{index_single_added_values_immediately} || 0,
-             },
+             index          => $or_self->{searchengine}{elasticsearch}{index} || 'UNKNOWN',
+             type           => $or_self->{searchengine}{elasticsearch}{type}  || 'UNKNOWN',
+             enable_query   => $or_self->{searchengine}{elasticsearch}{enable_query} || 0,
+             cluster_health => $or_es->cluster->health,
+             index_single_added_values_immediately => $or_self->{searchengine}{elasticsearch}{index_single_added_values_immediately} || 0,
             );
         # boolean -> 0/1
         for (values %{$h_searchengine_stats{elasticsearch}{cluster_health}}) {
             $_ = $_ ? 1 : 0 if ref eq 'JSON::XS::Boolean';
         }
+        $h_flat_searchengine_stats{"elasticsearch_$_"} = $h_searchengine_stats{$_}
+          for qw(index type enable_query index_single_added_values_immediately);
+        $h_flat_searchengine_stats{"elasticsearch_cluster_health_$_"} = $h_searchengine_stats{cluster_health}{$_}
+          for qw(cluster_name active_shards_percent_as_number active_primary_shards number_of_nodes status);
     }
 
-    return {
-        count_datapointkeys => 0+$i_count_datapointkeys,
-        count_datapoints    => 0+$i_count_datapoints,
-        count_metrics       => 0+$i_count_metrics,
-        count_keys          => 0+$i_count_keys,
-        %h_searchengine_stats,
-    };
+    $stats{count_datapoints}    ||= 0+$or_self->{query}->select_count_datapoints->fetch->[0];
+    $stats{count_datapointkeys}   = 0+$or_self->{query}->select_count_datapointkeys->fetch->[0] if $or_self->{verbose};
+    $stats{count_metrics}         = 0+$or_self->{query}->select_count_metrics->fetch->[0]       if $or_self->{verbose};
+    $stats{count_keys}            = 0+$or_self->{query}->select_count_keys->fetch->[0]          if $or_self->{verbose};
+
+    %stats = (%stats, %h_flat_searchengine_stats);
+
+    return \%stats;
 }
 
 sub get_single_benchmark_point {

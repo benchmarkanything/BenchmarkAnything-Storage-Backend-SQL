@@ -25,7 +25,7 @@ sub default_columns {
 }
 
 sub benchmark_operators {
-    return ( '=', '!=', 'like', 'not like', '<', '>', '<=', '>=' );
+    return ( '=', '!=', 'like', 'not_like', '<', '>', '<=', '>=' );
 }
 
 sub create_where_clause {
@@ -33,7 +33,7 @@ sub create_where_clause {
     my ( $or_self, $s_column_name, $ar_value ) = @_;
 
     my $s_where_clause = q##;
-    if ( $ar_value->[0] eq 'not like' ) {
+    if ( $ar_value->[0] eq 'not like' or $ar_value->[0] eq 'not_like' ) {
         $s_where_clause = "$s_column_name NOT LIKE ?";
     }
     elsif ( $ar_value->[0] eq 'like' ) {

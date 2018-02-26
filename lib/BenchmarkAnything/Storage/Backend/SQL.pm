@@ -1360,7 +1360,7 @@ An Array of Array References containing restrictions for benchmark data points.
     <=          - lower equal
     >=          - greater equal
     like        - SQL LIKE
-    not like    - SQL NOT LIKE
+    not_like    - SQL NOT LIKE
 
 2. Parameter in Sub-Array = restricted column
 

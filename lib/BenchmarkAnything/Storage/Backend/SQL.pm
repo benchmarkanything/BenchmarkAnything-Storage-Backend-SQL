@@ -1361,6 +1361,7 @@ An Array of Array References containing restrictions for benchmark data points.
     >=          - greater equal
     like        - SQL LIKE
     not_like    - SQL NOT LIKE
+    is_empty    - empty string or undef or null
 
 2. Parameter in Sub-Array = restricted column
 
@@ -1449,8 +1450,12 @@ Every "key" create a new nested hash.
             'machine',
         ],
         where       => [
-            ['!=', 'machine', 'mx1.small'     ],
-            ['=' , 'NAME'   , 'testbenchmark' ],
+            ['!=',       'machine',      'mx1.small'     ],
+            ['=',        'NAME'   ,      'testbenchmark' ],
+            ['like',     'some_key',     'some%value'    ],
+            ['not_like', 'another_key',  'another%value' ],
+            ['is_empty', 'parameter1',   1 ], # check parameter1 is empty     - Elasticsearch backend only
+            ['is_empty', 'parameter2',   0 ], # check parameter2 is not empty - Elasticsearch backend only
         ],
         limit       => 2,
         offset      => 1,

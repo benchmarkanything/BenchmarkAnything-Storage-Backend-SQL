@@ -25,7 +25,7 @@ sub default_columns {
 }
 
 sub benchmark_operators {
-    return ( '=', '!=', 'like', 'not_like', '<', '>', '<=', '>=' );
+    return ( '=', '!=', 'like', 'not_like', 'is_empty', '<', '>', '<=', '>=' );
 }
 
 sub create_where_clause {
@@ -38,6 +38,41 @@ sub create_where_clause {
     }
     elsif ( $ar_value->[0] eq 'like' ) {
         $s_where_clause = "$s_column_name LIKE ?";
+    }
+    elsif ( $ar_value->[0] eq 'is_empty' ) {
+        my $empty_option = $ar_value->[1];
+        use Data::Dumper;
+        warn "ar_value: ".Dumper($ar_value);
+        if (defined($ar_value->[1]) and $ar_value->[1] eq '0') {
+            # check that field is NOT EMPTY:
+            #   [ "is_empty", "some_field_name", 0 ]
+            $s_where_clause  = "$s_column_name IS NOT NULL AND $s_column_name != ''";
+
+        } elsif (defined($ar_value->[1]) and $ar_value->[1] eq '2') {
+            # check that field is just EMPTY but exists (ie. not undefined/null):
+            #   [ "is_empty", "some_field_name", 2 ]
+            $s_where_clause = "$s_column_name IS NULL";
+
+        } elsif (defined($ar_value->[1]) and $ar_value->[1] eq '1') { # TODO: Does not work yet (sic, THE actual feature)
+            # check that field is EMPTY or UNDEFINED/NULL:
+            #   [ "is_empty", "some_field_name", 1 ]
+            #   [ "is_empty", "some_field_name" ]
+            $s_where_clause = "$s_column_name IS NULL OR $s_column_name = ''";
+
+        } elsif (not defined($ar_value->[1])) {
+            # check that field is EMPTY or UNDEFINED/NULL:
+            #   [ "is_empty", "some_field_name", 1 ]
+            #   [ "is_empty", "some_field_name" ]
+            warn "unsupported 'is_empty' condition (undef). Interpreting as 'is_empty' condition (1).";
+
+        } else {
+            # we might invent other semantics so we better warn about
+            # what could once become meaningful.
+            warn "unclear 'is_empty' condition (".$ar_value->[1]."). Interpreting as 'is_empty' condition (1).";
+            $s_where_clause = "$s_column_name IS NULL OR $s_column_name = ''";
+        }
+        warn "WHERE_CLAUSE: ".$s_where_clause."\n";
+        warn "ar_value->[1]:  ".$ar_value->[1]."\n";
     }
     elsif (
            $ar_value->[0] eq '<'

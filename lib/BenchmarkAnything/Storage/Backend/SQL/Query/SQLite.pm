@@ -80,7 +80,7 @@ sub select_benchmark_values {
             if ( any { $ar_where->[1] eq $_  } keys %h_default_columns ) {
                 my $s_column = splice( @{$ar_where}, 1, 1 );
                 push @a_where, $or_self->create_where_clause( $h_default_columns{$s_column}, $ar_where );
-                push @a_where_vals , @{$ar_where}[1..$#{$ar_where}];
+                push @a_where_vals , @{$ar_where}[1..$#{$ar_where}] unless $ar_where->[0] eq 'is_empty';
             }
             else {
                 my $s_additional_type = splice( @{$ar_where}, 1, 1 );
@@ -106,7 +106,7 @@ sub select_benchmark_values {
                 ";
                 push @a_from_vals, $hr_additional_type->{bench_additional_type_id};
                 push @a_where, $or_self->create_where_clause( "bav$i_counter.bench_additional_value", $ar_where );
-                push @a_where_vals , @{$ar_where}[1..$#{$ar_where}];
+                push @a_where_vals , @{$ar_where}[1..$#{$ar_where}] unless $ar_where->[0] eq 'is_empty';
                 $i_counter++;
             }
         }

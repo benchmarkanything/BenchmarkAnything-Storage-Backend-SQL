@@ -805,7 +805,9 @@ sub search_array {
                 my @ar_es_result = map { $_->{_source} } @{$hr_es_answer->{hits}{hits} || []};
                 return \@ar_es_result;
             }
-        }
+        } else {
+	    print STDERR "Did not get Elasticsearch query, fall back to SQL.\n" if $debug;
+	}
 
         # Else no-op, continue with relational backend query.
     }

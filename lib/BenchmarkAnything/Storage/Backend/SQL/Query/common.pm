@@ -649,7 +649,7 @@ sub revive_orphaned_raw_bench_bundles {
         SET    processing=0
         WHERE  processing = 1 AND
                created_at <= ?
-    ", ($created_at),
+    ", ($created_at));
 }
 
 sub start_processing_raw_bench_bundle {

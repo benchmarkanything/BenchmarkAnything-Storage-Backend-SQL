@@ -399,7 +399,7 @@ sub revive_orphaned_raw_bench_bundles {
 
     my $driver = $or_self->{query}{dbh}{Driver}{Name};
 
-    my $seconds_old = 8*60; # 8 minutes
+    my $seconds_old = 8*60;     # 8 minutes
 
     $or_self->{query}{dbh}->do("set transaction isolation level read committed") if $driver eq "mysql"; # avoid deadlocks due to gap locking
     $or_self->{query}->start_transaction;

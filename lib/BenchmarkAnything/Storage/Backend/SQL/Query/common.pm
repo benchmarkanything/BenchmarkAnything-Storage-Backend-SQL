@@ -631,6 +631,27 @@ sub update_benchmark_backup_value {
 
 }
 
+# Once in a while some bundles are locked for processing but that
+# processing didn't happen, e.g., due to some server stop. Here we
+# make them available for processing if they were created "some time
+# ago".
+sub revive_orphaned_raw_bench_bundles {
+
+    my ( $or_self, $hr_vals ) = @_;
+
+    return unless $hr_vals->{seconds};
+
+    my @t = localtime(time - $hr_vals->{seconds_old});
+    my $created_at = sprintf("%4d-%02d-%02d %02d:%02d:%02d", 1900+$t[5], 1+$t[4], $t[3], $t[2], $t[1], $t[0]);
+
+    return $or_self->execute_query("
+        UPDATE raw_bench_bundles
+        SET    processing=0
+        WHERE  processing = 1 AND
+               created_at <= ?
+    ", ($created_at),
+}
+
 sub start_processing_raw_bench_bundle {
 
     my ( $or_self, @a_vals ) = @_;

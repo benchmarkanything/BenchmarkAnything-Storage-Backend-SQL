@@ -394,6 +394,20 @@ sub enqueue_multi_benchmark {
 
 }
 
+sub revive_orphaned_raw_bench_bundles {
+    my ( $or_self, $hr_options ) = @_;
+
+    my $driver = $or_self->{query}{dbh}{Driver}{Name};
+
+    my $seconds_old = 8*60; # 8 minutes
+
+    $or_self->{query}{dbh}->do("set transaction isolation level read committed") if $driver eq "mysql"; # avoid deadlocks due to gap locking
+    $or_self->{query}->start_transaction;
+    eval { $or_self->{query}->revive_orphaned_raw_bench_bundles({seconds_old => $seconds_old}) };
+    $or_self->{query}->finish_transaction($@);
+    $or_self->{query}{dbh}->do("set transaction isolation level repeatable read") if $driver eq "mysql"; # reset to normal gap locking
+}
+
 # dequeues a single bundle (can contain multiple data points)
 sub process_queued_multi_benchmark {
 

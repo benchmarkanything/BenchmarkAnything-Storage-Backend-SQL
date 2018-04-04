@@ -415,7 +415,7 @@ sub process_queued_multi_benchmark {
             $or_result  = $ar_results->fetchrow_hashref;
             $i_id       = $or_result->{raw_bench_bundle_id};
             if (!$i_id) {
-                    $or_self->{query}->finish_transaction( "select_raw_bench_bundle_for_lock() failed" );
+                    $or_self->{query}->finish_transaction(0); # no raw_bench_bundle to process
                     $or_self->{query}{dbh}->do("set transaction isolation level repeatable read") if $driver eq "mysql"; # reset to normal gap locking
                     goto RETURN ;
             }

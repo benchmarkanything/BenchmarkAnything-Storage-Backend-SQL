@@ -820,8 +820,8 @@ sub search_array {
                 return \@ar_es_result;
             }
         } else {
-	    print STDERR "Did not get Elasticsearch query, fall back to SQL.\n" if $debug;
-	}
+            print STDERR "Did not get Elasticsearch query, fall back to SQL.\n" if $debug;
+        }
 
         # Else no-op, continue with relational backend query.
     }

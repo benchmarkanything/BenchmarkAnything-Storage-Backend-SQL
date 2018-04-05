@@ -5,6 +5,7 @@ use 5.008;
 use utf8;
 use strict;
 use warnings;
+use Try::Tiny;
 
 my $hr_default_config = {
     select_cache        => 0,
@@ -394,20 +395,6 @@ sub enqueue_multi_benchmark {
 
 }
 
-sub revive_orphaned_raw_bench_bundles {
-    my ( $or_self, $hr_options ) = @_;
-
-    my $driver = $or_self->{query}{dbh}{Driver}{Name};
-
-    my $seconds_old = 8*60;     # 8 minutes
-
-    $or_self->{query}{dbh}->do("set transaction isolation level read committed") if $driver eq "mysql"; # avoid deadlocks due to gap locking
-    $or_self->{query}->start_transaction;
-    eval { $or_self->{query}->revive_orphaned_raw_bench_bundles({seconds_old => $seconds_old}) };
-    $or_self->{query}->finish_transaction($@);
-    $or_self->{query}{dbh}->do("set transaction isolation level repeatable read") if $driver eq "mysql"; # reset to normal gap locking
-}
-
 # dequeues a single bundle (can contain multiple data points)
 sub process_queued_multi_benchmark {
 
@@ -416,44 +403,65 @@ sub process_queued_multi_benchmark {
     my $i_id;
     my $s_serialized;
     my $ar_data_points;
-    my $ar_results;
-    my $or_result;
+    my $ar_results_lock;
+    my $or_result_lock;
+    my $ar_results_process;
+
     my $driver = $or_self->{query}{dbh}{Driver}{Name};
+
+    $or_self->{query}{dbh}->do("set transaction isolation level read committed") if $driver eq "mysql"; # avoid deadlocks due to gap locking
+    $or_self->{query}->start_transaction;
 
     # ===== exclusively pick single raw entry =====
     # Lock single row via processing=1 so that only one worker handles it!
-    $or_self->{query}{dbh}->do("set transaction isolation level read committed") if $driver eq "mysql"; # avoid deadlocks due to gap locking
-    $or_self->{query}->start_transaction;
     eval {
-            $ar_results = $or_self->{query}->select_raw_bench_bundle_for_lock;
-            $or_result  = $ar_results->fetchrow_hashref;
-            $i_id       = $or_result->{raw_bench_bundle_id};
-            if (!$i_id) {
-                    $or_self->{query}->finish_transaction(0); # no raw_bench_bundle to process
-                    $or_self->{query}{dbh}->do("set transaction isolation level repeatable read") if $driver eq "mysql"; # reset to normal gap locking
-                    goto RETURN ;
+        try {
+            $ar_results_lock = $or_self->{query}->select_raw_bench_bundle_for_lock;
+            $or_result_lock  = $ar_results_lock->fetchrow_hashref;
+        }
+        catch {
+            if (/Deadlock found when trying to get lock/) {
+                # very normal, handled by eval{} and finish_transaction() in this sub.
+                # warn("IGNORED - DEADLOCK\n");
+                die $_;
+            } elsif (/DBD::mysql::st fetchrow_hashref failed: fetch.. without execute/) {
+                # very normal with multiple workers, usually related
+                # to above deadlock. It is handled by eval{} and
+                # finish_transaction() in this sub.
+                warn("IGNORED - FETCH-WITHOUT-EXECUTE\n");
+                die $_;
+            } else {
+                # An unexpected exception can happen anytime. It is
+                # handled by eval{} and finish_transaction() in this
+                # sub. Still, we print it to know what's happening.
+                require Carp;
+                Carp::cluck("SQL DATABASE EXCEPTION: {{{\n$_\n}}}\n");
+                die $_;
             }
+        };
+        $i_id       = $or_result_lock->{raw_bench_bundle_id};
+        if ($i_id) {
             $or_self->{query}->start_processing_raw_bench_bundle($i_id);
-    };
-    $or_self->{query}->finish_transaction( $@ );
-    $or_self->{query}{dbh}->do("set transaction isolation level repeatable read") if $driver eq "mysql"; # reset to normal gap locking
 
-    # ===== process that single raw entry =====
-    $or_self->{query}->start_transaction;
-    eval {
+            # ===== process that single raw entry =====
             require Sereal::Decoder;
 
-            $ar_results     = $or_self->{query}->select_raw_bench_bundle_for_processing($i_id);
-            $s_serialized   = $ar_results->fetchrow_hashref->{raw_bench_bundle_serialized};
-            $ar_data_points = Sereal::Decoder::decode_sereal($s_serialized);
+            $ar_results_process = $or_self->{query}->select_raw_bench_bundle_for_processing($i_id);
+            $s_serialized       = $ar_results_process->fetchrow_hashref->{raw_bench_bundle_serialized};
+            $ar_data_points     = Sereal::Decoder::decode_sereal($s_serialized);
 
             # preserve order, otherwise add_multi_benchmark() would reorder to optimize insert
             $or_self->add_multi_benchmark([$_], $hr_options) foreach @$ar_data_points;
             $or_self->{query}->update_raw_bench_bundle_set_processed($i_id);
+        }
     };
-    $or_self->{query}->finish_transaction( $@ );
+    $or_self->{query}->finish_transaction($@, { silent => 1 });
 
- RETURN:
+    # $or_self->{query}->start_transaction;
+    # eval { $or_self->{query}->unlock_raw_bench_bundle($i_id) };
+    # $or_self->{query}->finish_transaction($@, { silent => 1 });
+
+    $or_self->{query}{dbh}->do("set transaction isolation level repeatable read") if $driver eq "mysql"; # reset to normal gap locking
     return $@ ? undef : $i_id;
 
 }

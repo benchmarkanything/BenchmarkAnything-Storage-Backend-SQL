@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.024     2018-04-11
         - tweak sql schema with more indexes
         - rework transaction handling in queue processing
         - new comparator 'is_empty' to check for absence of value

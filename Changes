@@ -1,6 +1,10 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - tweak sql schema with more indexes
+        - rework transaction handling in queue processing
+        - new comparator 'is_empty' to check for absence of value
+        - renamed comparator 'not like' into 'not_like'
 
 0.023     2017-02-08
         - parallel sync_search_engine

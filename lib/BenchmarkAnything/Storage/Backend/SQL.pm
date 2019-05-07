@@ -398,13 +398,13 @@ sub enqueue_multi_benchmark {
 # dequeues a single bundle (can contain multiple data points)
 sub process_queued_multi_benchmark {
 
-    my ( $or_self, $hr_options ) = @_;
+    my ( $or_self, $bulkcount, $hr_options ) = @_;
 
     my $i_id;
     my $s_serialized;
     my $ar_data_points;
     my $ar_results_lock;
-    my $or_result_lock;
+    my @a_bench_bundle_ids;
     my $ar_results_process;
 
     my $driver = $or_self->{query}{dbh}{Driver}{Name};
@@ -416,8 +416,8 @@ sub process_queued_multi_benchmark {
     # Lock single row via processing=1 so that only one worker handles it!
     eval {
         try {
-            $ar_results_lock = $or_self->{query}->select_raw_bench_bundle_for_lock;
-            $or_result_lock  = $ar_results_lock->fetchrow_hashref;
+            $ar_results_lock = $or_self->{query}->select_raw_bench_bundle_for_lock2($bulkcount);
+            @a_bench_bundle_ids  = map { $_->[0] } @{$ar_results_lock->fetchall_arrayref()};
         }
         catch {
             if (/Deadlock found when trying to get lock/) {
@@ -439,22 +439,25 @@ sub process_queued_multi_benchmark {
                 die $_;
             }
         };
-        $i_id       = $or_result_lock->{raw_bench_bundle_id};
-        if ($i_id) {
-            $or_self->{query}->start_processing_raw_bench_bundle($i_id);
 
-            # ===== process that single raw entry =====
-            require Sereal::Decoder;
+        if (@a_bench_bundle_ids) {
+            $or_self->{query}->start_processing_raw_bench_bundle2(@a_bench_bundle_ids);
+            foreach $i_id (@a_bench_bundle_ids) {
 
-            $ar_results_process = $or_self->{query}->select_raw_bench_bundle_for_processing($i_id);
-            $s_serialized       = $ar_results_process->fetchrow_hashref->{raw_bench_bundle_serialized};
-            $ar_data_points     = Sereal::Decoder::decode_sereal($s_serialized);
+                # ===== process that single raw entry =====
+                require Sereal::Decoder;
 
-            # preserve order, otherwise add_multi_benchmark() would reorder to optimize insert
-            $or_self->add_multi_benchmark([$_], $hr_options) foreach @$ar_data_points;
-            $or_self->{query}->update_raw_bench_bundle_set_processed($i_id);
+                $ar_results_process = $or_self->{query}->select_raw_bench_bundle_for_processing($i_id);
+                $s_serialized       = $ar_results_process->fetchrow_hashref->{raw_bench_bundle_serialized};
+                $ar_data_points     = Sereal::Decoder::decode_sereal($s_serialized);
+
+                # preserve order, otherwise add_multi_benchmark() would reorder to optimize insert
+                $or_self->add_multi_benchmark([$_], $hr_options) foreach @$ar_data_points;
+            }
+            $or_self->{query}->update_raw_bench_bundle_set_processed2(@a_bench_bundle_ids);
         }
     };
+
     $or_self->{query}->finish_transaction($@, { silent => 1 });
 
     # $or_self->{query}->start_transaction;
@@ -462,7 +465,9 @@ sub process_queued_multi_benchmark {
     # $or_self->{query}->finish_transaction($@, { silent => 1 });
 
     $or_self->{query}{dbh}->do("set transaction isolation level repeatable read") if $driver eq "mysql"; # reset to normal gap locking
-    return $@ ? undef : $i_id;
+    my $err = $@;
+    print STDERR "err: ".$err."\n" if $err && $or_self->{debug};
+    return ($err ? () : @a_bench_bundle_ids);
 
 }
 

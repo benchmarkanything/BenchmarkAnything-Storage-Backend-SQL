@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - optimizations in queue processing
 
 0.024     2018-04-11
         - tweak sql schema with more indexes

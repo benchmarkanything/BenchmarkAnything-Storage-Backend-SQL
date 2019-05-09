@@ -685,6 +685,19 @@ sub update_raw_bench_bundle_set_processed2 {
 
 }
 
+sub update_raw_bench_bundle_set_processed3 {
+
+    my ( $or_self, @a_vals ) = @_;
+
+    return $or_self->execute_query( "
+        UPDATE raw_bench_bundles
+        SET processed=1,
+            processing=0
+        WHERE raw_bench_bundle_id IN (".join(',', ('?') x @a_vals).")
+    ", @a_vals );
+
+}
+
 # sub unlock_raw_bench_bundle {
 
 #     my ( $or_self, @a_vals ) = @_;
@@ -799,6 +812,21 @@ sub select_raw_bench_bundle_for_processing {
         LIMIT 1
         @{[$or_self->_FOR_UPDATE]}
     ", @a_vals );
+}
+
+sub select_raw_bench_bundle_for_processing2 {
+
+    my ( $or_self, @a_vals ) = @_;
+
+    my $q = "
+        SELECT raw_bench_bundle_serialized
+        FROM raw_bench_bundles
+        WHERE raw_bench_bundle_id IN (".join(',', ('?') x @a_vals).")
+        ORDER BY raw_bench_bundle_id ASC
+        @{[$or_self->_FOR_UPDATE]}
+    ";
+    #print STDERR "q: $q\n";
+    return $or_self->execute_query($q, @a_vals );
 }
 
 1;

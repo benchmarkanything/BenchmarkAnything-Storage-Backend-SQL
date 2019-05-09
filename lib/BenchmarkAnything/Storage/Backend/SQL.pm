@@ -401,11 +401,8 @@ sub process_queued_multi_benchmark {
     my ( $or_self, $bulkcount, $hr_options ) = @_;
 
     my $i_id;
-    my $s_serialized;
-    my $ar_data_points;
     my $ar_results_lock;
     my @a_bench_bundle_ids;
-    my $ar_results_process;
 
     my $driver = $or_self->{query}{dbh}{Driver}{Name};
 
@@ -441,20 +438,24 @@ sub process_queued_multi_benchmark {
         };
 
         if (@a_bench_bundle_ids) {
-            $or_self->{query}->start_processing_raw_bench_bundle2(@a_bench_bundle_ids);
-            foreach $i_id (@a_bench_bundle_ids) {
 
-                # ===== process that single raw entry =====
-                require Sereal::Decoder;
+            my @a_serialized;
+            my $ar_results_process;
 
-                $ar_results_process = $or_self->{query}->select_raw_bench_bundle_for_processing($i_id);
-                $s_serialized       = $ar_results_process->fetchrow_hashref->{raw_bench_bundle_serialized};
-                $ar_data_points     = Sereal::Decoder::decode_sereal($s_serialized);
-
-                # preserve order, otherwise add_multi_benchmark() would reorder to optimize insert
-                $or_self->add_multi_benchmark([$_], $hr_options) foreach @$ar_data_points;
+            $ar_results_process = $or_self->{query}->select_raw_bench_bundle_for_processing2(@a_bench_bundle_ids);
+            @a_serialized  = map { $_->[0] } @{$ar_results_process->fetchall_arrayref()};
+            eval {
+                foreach my $s_serialized (@a_serialized) {
+                    require Sereal::Decoder;
+                    my $ar_data_points;
+                    $ar_data_points = Sereal::Decoder::decode_sereal($s_serialized);
+                    # preserve order, otherwise add_multi_benchmark() would reorder to optimize insert
+                    $or_self->add_multi_benchmark([$_], $hr_options) foreach @$ar_data_points;
+                }
+            };
+            if (!$@) {
+                $or_self->{query}->update_raw_bench_bundle_set_processed3(@a_bench_bundle_ids);
             }
-            $or_self->{query}->update_raw_bench_bundle_set_processed2(@a_bench_bundle_ids);
         }
     };
 

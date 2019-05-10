@@ -445,13 +445,21 @@ sub process_queued_multi_benchmark {
             $ar_results_process = $or_self->{query}->select_raw_bench_bundle_for_processing2(@a_bench_bundle_ids);
             @a_serialized  = map { $_->[0] } @{$ar_results_process->fetchall_arrayref()};
             eval {
-                foreach my $s_serialized (@a_serialized) {
-                    require Sereal::Decoder;
-                    my $ar_data_points;
-                    $ar_data_points = Sereal::Decoder::decode_sereal($s_serialized);
-                    # preserve order, otherwise add_multi_benchmark() would reorder to optimize insert
-                    $or_self->add_multi_benchmark([$_], $hr_options) foreach @$ar_data_points;
-                }
+                require Sereal::Decoder;
+
+                my @a_data_points = map {
+                    @{Sereal::Decoder::decode_sereal($_) || []};
+                } @a_serialized;
+
+                # please note, this reorders data points for efficiency,
+                # read the comments there.
+                $or_self->add_multi_benchmark(\@a_data_points, $hr_options);
+
+                # preserve order by adding each data_point separately,
+                # otherwise add_multi_benchmark() would reorder to optimize insert
+                # foreach my $hr_data_point (@a_data_points) {
+                #     $or_self->add_multi_benchmark([$hr_data_point], $hr_options);
+                # }
             };
             if (!$@) {
                 $or_self->{query}->update_raw_bench_bundle_set_processed3(@a_bench_bundle_ids);
@@ -460,10 +468,6 @@ sub process_queued_multi_benchmark {
     };
 
     $or_self->{query}->finish_transaction($@, { silent => 1 });
-
-    # $or_self->{query}->start_transaction;
-    # eval { $or_self->{query}->unlock_raw_bench_bundle($i_id) };
-    # $or_self->{query}->finish_transaction($@, { silent => 1 });
 
     $or_self->{query}{dbh}->do("set transaction isolation level repeatable read") if $driver eq "mysql"; # reset to normal gap locking
     my $err = $@;
@@ -490,10 +494,24 @@ sub gc {
 
 sub add_multi_benchmark {
 
+    # How ordering happens:
+    #
+    # We keep the order inside points of the same NAME and process
+    # NAMEs in order they appeared inside a group of processed
+    # bundles.
+    #
+    # However, if multiple reports were processed, where each report
+    # contains a metric A, B, and C, and we process 10 such reports at
+    # once, then the we get first 10 different As in order, then 10
+    # different B in order, then 10 different C in order, BUT NOT: the
+    # 1st A, 1st B, 1st C, then 2nd A, 2nd B, 2nd C, etc.
+
     my ( $or_self, $ar_data_points, $hr_options ) = @_;
 
     my $i_counter    = 1;
     my %h_benchmarks = ();
+    my @a_name_order = ();
+
     for my $hr_data_point ( @{$ar_data_points} ) {
 
         for my $s_param (qw/ NAME VALUE /) {
@@ -516,6 +534,7 @@ sub add_multi_benchmark {
                 UNIT    => $s_unit,
                 data    => [],
             };
+            push @a_name_order, $s_name;
         }
         else {
             $h_benchmarks{$s_name}{UNIT} ||= $s_unit;
@@ -526,7 +545,9 @@ sub add_multi_benchmark {
         $i_counter++;
 
     }
-    for my $hr_benchmark ( values %h_benchmarks ) {
+
+    foreach (@a_name_order) {
+        my $hr_benchmark = $h_benchmarks{$_};
         $or_self->add_single_benchmark( $hr_benchmark, $hr_options );
     }
 

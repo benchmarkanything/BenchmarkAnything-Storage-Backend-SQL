@@ -1,6 +1,9 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - rework ordering in processing queued bench bundles
+          so that we can use an earlier optimization again for
+          inserting large amounts of data.
 
 0.025     2019-05-09
         - optimizations in queue processing

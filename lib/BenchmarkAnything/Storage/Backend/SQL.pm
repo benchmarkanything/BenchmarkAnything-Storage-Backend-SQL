@@ -453,13 +453,14 @@ sub process_queued_multi_benchmark {
 
                 # please note, this reorders data points for efficiency,
                 # read the comments there.
-                $or_self->add_multi_benchmark(\@a_data_points, $hr_options);
+                # (maybe this bulk insert is broken - use with care, double check)
+                # $or_self->add_multi_benchmark(\@a_data_points, $hr_options);
 
                 # preserve order by adding each data_point separately,
                 # otherwise add_multi_benchmark() would reorder to optimize insert
-                # foreach my $hr_data_point (@a_data_points) {
-                #     $or_self->add_multi_benchmark([$hr_data_point], $hr_options);
-                # }
+                foreach my $hr_data_point (@a_data_points) {
+                    $or_self->add_multi_benchmark([$hr_data_point], $hr_options);
+                }
             };
             if (!$@) {
                 $or_self->{query}->update_raw_bench_bundle_set_processed3(@a_bench_bundle_ids);

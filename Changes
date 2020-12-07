@@ -2,6 +2,7 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
         - roll back v0.026 optimization
+	- allow ES versions greater than v5
 
 0.026     2019-05-10
         - rework ordering in processing queued bench bundles

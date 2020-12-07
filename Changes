@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.027     2020-12-07
         - roll back v0.026 optimization
 	- allow ES versions greater than v5
 

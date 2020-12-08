@@ -40,7 +40,7 @@ sub sync_search_engine_mce
                      bounds_only => 1);
     mce_flow_s sub {
         BenchmarkAnything::Storage::Backend::SQL::Search::_sync_search_engine_process_chunk ($or_sql, $b_force, $_->[0], $_->[1]);
-    }, 1, $i_count_datapoints;
+    }, $i_start, $i_count_datapoints;
 }
 
 1;

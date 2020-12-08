@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.028     2020-12-08
         - fix use of --startid in search-sync
 
 0.027     2020-12-07

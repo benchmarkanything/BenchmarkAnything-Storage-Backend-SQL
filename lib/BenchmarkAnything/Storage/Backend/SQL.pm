@@ -467,7 +467,6 @@ sub process_queued_multi_benchmark {
             if (!$@) {
                 $or_self->{query}->update_raw_bench_bundle_set_processed3(@a_bench_bundle_ids);
             }
-            print STDERR "processed data points: $process_count\n" if $or_self->{debug} or $ENV{DEBUG};
         }
     };
 

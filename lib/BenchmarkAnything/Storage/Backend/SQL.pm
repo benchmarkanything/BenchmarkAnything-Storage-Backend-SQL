@@ -441,6 +441,7 @@ sub process_queued_multi_benchmark {
 
             my @a_serialized;
             my $ar_results_process;
+            my $process_count = 0;
 
             $ar_results_process = $or_self->{query}->select_raw_bench_bundle_for_processing2(@a_bench_bundle_ids);
             @a_serialized  = map { $_->[0] } @{$ar_results_process->fetchall_arrayref()};
@@ -461,10 +462,12 @@ sub process_queued_multi_benchmark {
                 foreach my $hr_data_point (@a_data_points) {
                     $or_self->add_multi_benchmark([$hr_data_point], $hr_options);
                 }
+                $process_count += scalar(@a_data_points);
             };
             if (!$@) {
                 $or_self->{query}->update_raw_bench_bundle_set_processed3(@a_bench_bundle_ids);
             }
+            print STDERR "processed data points: $process_count\n" if $or_self->{debug} or $ENV{DEBUG};
         }
     };
 

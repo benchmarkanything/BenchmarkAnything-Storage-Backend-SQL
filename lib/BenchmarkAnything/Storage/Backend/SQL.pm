@@ -373,7 +373,6 @@ sub add_single_benchmark {
 
         my $hr_bmk = $or_self->get_single_benchmark_point($VALUE_ID);
         my $ret = $or_es->index(index => $s_index,
-                                ( ($or_self->{searchengine}{elasticsearch}{client} eq '5_0::Direct') ? (type => $s_type) : () ),
                                 id    => $VALUE_ID,
                                 body  => $hr_bmk);
     }
@@ -828,28 +827,32 @@ sub search_array {
             my $field_mapping = {};
             my @sort_fields = map {keys %$_} @{$hr_es_query->{sort}||[]};
             if (@sort_fields) {
-                $field_mapping = $or_es->indices->get_mapping->{$s_index}{mappings}{$s_type}{properties};
+                $field_mapping =
+                  $or_es->indices->get_mapping->{$s_index}{mappings}{properties} ||        # > v5
+                  $or_es->indices->get_mapping->{$s_index}{mappings}{$s_type}{properties}; # = v5
             }
             foreach my $sort_field (@sort_fields)
             {
                 if ($field_mapping->{$sort_field}{type} and $field_mapping->{$sort_field}{type} eq 'text')
                 {
                     require BenchmarkAnything::Storage::Backend::SQL::Search;
-                    my $query = ($or_self->{searchengine}{elasticsearch}{client} eq '5_0::Direct')
-                      ? { $s_type => { properties => { $sort_field => { type => 'text', fielddata => BenchmarkAnything::Storage::Backend::SQL::Search::json_true() }}}}
-                      : {              properties => { $sort_field => { type => 'text', fielddata => BenchmarkAnything::Storage::Backend::SQL::Search::json_true() }} };
                     $or_es->indices->put_mapping
                      (
                       index => $s_index,
-                      ( ($or_self->{searchengine}{elasticsearch}{client} eq '5_0::Direct') ? (type => $s_type) : () ),
-                      body => $query,
+                      body => {
+                        properties => {
+                          $sort_field => {
+                            type => 'text',
+                            fielddata => BenchmarkAnything::Storage::Backend::SQL::Search::json_true(),
+                          },
+                        },
+                      },
                      );
                 }
             }
 
             # ===== search =====
             my $hr_es_answer = $or_es->search(index => $s_index,
-                                              ( ($or_self->{searchengine}{elasticsearch}{client} eq '5_0::Direct') ? (type => $s_type) : () ),
                                               body => $hr_es_query);
 
             if (

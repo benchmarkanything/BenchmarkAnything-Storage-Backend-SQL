@@ -373,7 +373,7 @@ sub add_single_benchmark {
 
         my $hr_bmk = $or_self->get_single_benchmark_point($VALUE_ID);
         my $ret = $or_es->index(index => $s_index,
-                                type  => $s_type,
+                                ( ($or_self->{searchengine}{elasticsearch}{client} eq '5_0::Direct') ? (type => $s_type) : () ),
                                 id    => $VALUE_ID,
                                 body  => $hr_bmk);
     }
@@ -835,19 +835,22 @@ sub search_array {
                 if ($field_mapping->{$sort_field}{type} and $field_mapping->{$sort_field}{type} eq 'text')
                 {
                     require BenchmarkAnything::Storage::Backend::SQL::Search;
+                    my $query = ($or_self->{searchengine}{elasticsearch}{client} eq '5_0::Direct')
+                      ? { $s_type => { properties => { $sort_field => { type => 'text', fielddata => BenchmarkAnything::Storage::Backend::SQL::Search::json_true() }}}}
+                      : {              properties => { $sort_field => { type => 'text', fielddata => BenchmarkAnything::Storage::Backend::SQL::Search::json_true() }} };
                     $or_es->indices->put_mapping
                      (
                       index => $s_index,
-                      type => $s_type,
-                      body => { $s_type => { properties => { $sort_field => { type => 'text',
-                                                                              fielddata => BenchmarkAnything::Storage::Backend::SQL::Search::json_true(),
-                                                                            }}}}
+                      ( ($or_self->{searchengine}{elasticsearch}{client} eq '5_0::Direct') ? (type => $s_type) : () ),
+                      body => $query,
                      );
                 }
             }
 
             # ===== search =====
-            my $hr_es_answer = $or_es->search(index => $s_index, type => $s_type, body => $hr_es_query);
+            my $hr_es_answer = $or_es->search(index => $s_index,
+                                              ( ($or_self->{searchengine}{elasticsearch}{client} eq '5_0::Direct') ? (type => $s_type) : () ),
+                                              body => $hr_es_query);
 
             if (
                 !$hr_es_answer->{timed_out} and
@@ -1770,20 +1773,17 @@ You can pass through a config entry for an external search engine
             # touch the internal fields you better know what you are
             # doing.
             additional_mappings => {
-                # type as defined above in elasticsearch.type
-                benchmarkanything => {
-                    # static key <properties>
-                    properties => {
-                        # field
-                        tapper_report => {
-                            type => long,
-                        },
-                        tapper_testrun => {
-                            type => long,
-                        },
-                        tapper_testplan => {
-                            type => long,
-                        },
+                # static key <properties>
+                properties => {
+                    # field
+                    tapper_report => {
+                        type => long,
+                    },
+                    tapper_testrun => {
+                        type => long,
+                    },
+                    tapper_testplan => {
+                        type => long,
                     },
                 },
             },

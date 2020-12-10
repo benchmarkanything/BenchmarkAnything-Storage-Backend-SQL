@@ -6,6 +6,7 @@ use utf8;
 use strict;
 use warnings;
 use Try::Tiny;
+use Data::Dumper;
 
 my $hr_default_config = {
     select_cache        => 0,
@@ -443,30 +444,31 @@ sub process_queued_multi_benchmark {
 
             $ar_results_process = $or_self->{query}->select_raw_bench_bundle_for_processing2(@a_bench_bundle_ids);
             @a_serialized  = map { $_->[0] } @{$ar_results_process->fetchall_arrayref()};
+            require Sereal::Decoder;
+            my @a_data_points = map { @{Sereal::Decoder::decode_sereal($_) || []}; } @a_serialized;
+
+            # please note, this reorders data points for efficiency,
+            # read the comments there.
+            # (maybe this bulk insert is broken - use with care, double check)
+            # $or_self->add_multi_benchmark(\@a_data_points, $hr_options);
+
+            # preserve order by adding each data_point separately,
+            # otherwise add_multi_benchmark() would reorder to optimize insert
             eval {
-                require Sereal::Decoder;
-
-                my @a_data_points = map {
-                    @{Sereal::Decoder::decode_sereal($_) || []};
-                } @a_serialized;
-
-                # please note, this reorders data points for efficiency,
-                # read the comments there.
-                # (maybe this bulk insert is broken - use with care, double check)
-                # $or_self->add_multi_benchmark(\@a_data_points, $hr_options);
-
-                # preserve order by adding each data_point separately,
-                # otherwise add_multi_benchmark() would reorder to optimize insert
                 foreach my $hr_data_point (@a_data_points) {
-                    $or_self->add_multi_benchmark([$hr_data_point], $hr_options);
+                    eval {
+                        $or_self->add_multi_benchmark([$hr_data_point], $hr_options);
+                    };
+                    if ($@) {
+                        if ($@ =~ /failed to parse field.*VALUE/) {
+                            print STDERR "IGNORE - field parse failure on VALUE: ".Dumper($hr_data_point);
+                        } else {
+                            print STDERR "UNEXPECTED ERROR during add_multi_benchmark\n";
+                            die $@;
+                        }
+                    }
                 }
-            };
-            if (!$@) {
                 $or_self->{query}->update_raw_bench_bundle_set_processed3(@a_bench_bundle_ids);
-            } else {
-                print STDERR "ERROR   during add_multi_benchmark";
-                print STDERR "SKIPPED update_raw_bench_bundle_set_processed3";
-                print STDERR $@;
             }
         }
     };
